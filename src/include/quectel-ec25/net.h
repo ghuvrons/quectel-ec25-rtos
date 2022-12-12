@@ -29,7 +29,7 @@ enum {
 };
 
 typedef struct {
-  void      *hsim;         // QTEL_HandlerTypeDef
+  void      *qtel;         // QTEL_HandlerTypeDef
   uint8_t   status;
   uint8_t   state;
   uint8_t   events;

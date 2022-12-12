@@ -26,14 +26,14 @@ enum {
 };
 
 typedef struct QTEL_Socket_HandlerTypeDef {
-  void                *hsim;
+  void                *qtel;
   uint8_t             state;
   uint32_t            stateTick;
   uint8_t             socketsNb;
   QTEL_SocketClient_t *sockets[QTEL_NUM_OF_SOCKET];
 } QTEL_Socket_HandlerTypeDef;
 
-QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef*, void *hsim);
+QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef*, void *qtelPtr);
 void          QTEL_SockManager_SetState(QTEL_Socket_HandlerTypeDef*, uint8_t newState);
 QTEL_Status_t QTEL_SockManager_OnNewState(QTEL_Socket_HandlerTypeDef*);
 void          QTEL_SockManager_CheckSocketsEvents(QTEL_Socket_HandlerTypeDef*);
