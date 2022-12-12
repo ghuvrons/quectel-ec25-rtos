@@ -227,7 +227,7 @@ static void loop(QTEL_HandlerTypeDef* hsim)
     break;
 
   case QTEL_STATE_CHECK_SIMCARD:
-    if (QTEL_IsTimeout(hsim, hsim->tick.changedState, 2000)) {
+    if (QTEL_IsTimeout(hsim, hsim->tick.changedState, 1000)) {
       QTEL_SetState(hsim, QTEL_STATE_CHECK_SIMCARD);
     }
     break;
