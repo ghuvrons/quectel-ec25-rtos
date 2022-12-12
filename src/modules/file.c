@@ -5,57 +5,57 @@
  *      Author: janoko
  */
 
-#include "../include/simcom/file.h"
+#include <quectel-ec25/file.h>
 
-#if SIM_EN_FEATURE_FILE
+#if QTEL_EN_FEATURE_FILE
 #include "../include/simcom.h"
-#include "../include/simcom/debug.h"
+#include <quectel-ec25/debug.h>
 #include <at-command/utils.h>
 #include <string.h>
 
 
-SIM_Status_t SIM_FILE_Init(SIM_FILE_HandlerTypeDef *hsimFile, void *hsim)
+QTEL_Status_t QTEL_FILE_Init(QTEL_FILE_HandlerTypeDef *qtelFile, void *qtelPtr)
 {
-  if (((SIM_HandlerTypeDef*)hsim)->key != SIM_KEY)
-    return SIM_ERROR;
+  if (((QTEL_HandlerTypeDef*)qtelPtr)->key != QTEL_KEY)
+    return QTEL_ERROR;
 
-  hsimFile->hsim = hsim;
+  qtelFile->qtel = qtelPtr;
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_FILE_ChangeDir(SIM_FILE_HandlerTypeDef *hsimFile, const char *dir)
+QTEL_Status_t QTEL_FILE_ChangeDir(QTEL_FILE_HandlerTypeDef *qtelFile, const char *dir)
 {
-  SIM_HandlerTypeDef  *hsim       = hsimFile->hsim;
+  QTEL_HandlerTypeDef  *hsim       = qtelFile->hsim;
 
   AT_Data_t           paramData[1] = {
       AT_Bytes(dir, strlen(dir)),
   };
 
-  if (AT_Command(&hsim->atCmd, "+FSCD", 1, paramData, 0, 0) != AT_OK) return SIM_ERROR;
+  if (AT_Command(&hsim->atCmd, "+FSCD", 1, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_FILE_MakeDir(SIM_FILE_HandlerTypeDef *hsimFile, const char *dir)
+QTEL_Status_t QTEL_FILE_MakeDir(QTEL_FILE_HandlerTypeDef *qtelFile, const char *dir)
 {
-  SIM_HandlerTypeDef  *hsim       = hsimFile->hsim;
+  QTEL_HandlerTypeDef  *hsim       = qtelFile->hsim;
 
   AT_Data_t           paramData[1] = {
       AT_Bytes(dir, strlen(dir)),
   };
 
-  if (AT_Command(&hsim->atCmd, "+FSMKDIR", 1, paramData, 0, 0) != AT_OK) return SIM_ERROR;
+  if (AT_Command(&hsim->atCmd, "+FSMKDIR", 1, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_FILE_MemoryInfo(SIM_FILE_HandlerTypeDef *hsimFile)
+QTEL_Status_t QTEL_FILE_MemoryInfo(QTEL_FILE_HandlerTypeDef *qtelFile)
 {
-  SIM_HandlerTypeDef  *hsim       = hsimFile->hsim;
+  QTEL_HandlerTypeDef  *hsim       = qtelFile->hsim;
 
   uint8_t       respBuf[64];
   const uint8_t *respBufPtr = respBuf;
@@ -66,7 +66,7 @@ SIM_Status_t SIM_FILE_MemoryInfo(SIM_FILE_HandlerTypeDef *hsimFile)
   AT_Data_t memTotal = AT_Number(0);
   AT_Data_t memUsed = AT_Number(0);
 
-  if (AT_Command(&hsim->atCmd, "+FSMEM", 0, 0, 1, respData) != AT_OK) return SIM_ERROR;
+  if (AT_Command(&hsim->atCmd, "+FSMEM", 0, 0, 1, respData) != AT_OK) return QTEL_ERROR;
 
   while (*respBufPtr != 0) {
     if (*respBufPtr == '(') {
@@ -80,17 +80,17 @@ SIM_Status_t SIM_FILE_MemoryInfo(SIM_FILE_HandlerTypeDef *hsimFile)
   respBufPtr = (const uint8_t*) AT_ParseResponse((const char*)respBufPtr, &memTotal);
   respBufPtr = (const uint8_t*) AT_ParseResponse((const char*)respBufPtr, &memUsed);
 
-  hsimFile->memoryTotal = (uint32_t) memTotal.value.number;
-  hsimFile->memoryUsed = (uint32_t) memUsed.value.number;
+  qtelFile->memoryTotal = (uint32_t) memTotal.value.number;
+  qtelFile->memoryUsed = (uint32_t) memUsed.value.number;
 
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_FILE_IsFileExist(SIM_FILE_HandlerTypeDef *hsimFile, const char *filepath)
+QTEL_Status_t QTEL_FILE_IsFileExist(QTEL_FILE_HandlerTypeDef *qtelFile, const char *filepath)
 {
-  SIM_HandlerTypeDef  *hsim       = hsimFile->hsim;
+  QTEL_HandlerTypeDef  *hsim       = qtelFile->hsim;
 
   AT_Data_t           paramData[3] = {
       AT_String(filepath),
@@ -98,16 +98,16 @@ SIM_Status_t SIM_FILE_IsFileExist(SIM_FILE_HandlerTypeDef *hsimFile, const char 
       AT_Number(1),
   };
 
-  if (AT_Command(&hsim->atCmd, "+CFTRANTX", 3, paramData, 0, 0) != AT_OK) return SIM_ERROR;
+  if (AT_Command(&hsim->atCmd, "+CFTRANTX", 3, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
-SIM_Status_t SIM_FILE_CreateAndWriteFile(SIM_FILE_HandlerTypeDef *hsimFile,
+QTEL_Status_t QTEL_FILE_CreateAndWriteFile(QTEL_FILE_HandlerTypeDef *qtelFile,
                                          const char *filepath,
                                          uint8_t* data, uint16_t len)
 {
-  SIM_HandlerTypeDef  *hsim       = hsimFile->hsim;
+  QTEL_HandlerTypeDef  *hsim       = qtelFile->hsim;
 
   AT_Data_t paramData[2] = {
       AT_String(filepath),
@@ -118,23 +118,23 @@ SIM_Status_t SIM_FILE_CreateAndWriteFile(SIM_FILE_HandlerTypeDef *hsimFile,
                       data, len,
                       2, paramData, 0, 0) != AT_OK)
   {
-    return SIM_ERROR;
+    return QTEL_ERROR;
   }
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
-SIM_Status_t SIM_FILE_RemoveFile(SIM_FILE_HandlerTypeDef *hsimFile, const char *filepath)
+QTEL_Status_t QTEL_FILE_RemoveFile(QTEL_FILE_HandlerTypeDef *qtelFile, const char *filepath)
 {
-  SIM_HandlerTypeDef  *hsim       = hsimFile->hsim;
+  QTEL_HandlerTypeDef  *hsim       = qtelFile->hsim;
 
   AT_Data_t paramData[1] = {
       AT_Bytes(filepath, strlen(filepath)),
   };
 
-  if (AT_Command(&hsim->atCmd, "+FSDEL", 1, paramData, 0, 0) != AT_OK) return SIM_ERROR;
+  if (AT_Command(&hsim->atCmd, "+FSDEL", 1, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
-#endif /* SIM_EN_FEATURE_FILE */
+#endif /* QTEL_EN_FEATURE_FILE */

@@ -1,13 +1,13 @@
-#ifndef SIMCOM_7600E_TYPES_H
-#define SIMCOM_7600E_TYPES_H
+#ifndef QUECTEL_EC25_TYPES_H
+#define QUECTEL_EC25_TYPES_H
 
 #include <stdint.h>
 
 typedef enum {
-  SIM_OK,
-  SIM_ERROR,
-  SIM_TIMEOUT
-} SIM_Status_t;
+  QTEL_OK,
+  QTEL_ERROR,
+  QTEL_TIMEOUT
+} QTEL_Status_t;
 
 typedef struct {
   uint8_t year;
@@ -17,6 +17,6 @@ typedef struct {
   uint8_t minute;
   uint8_t second;
   int8_t  timezone;
-} SIM_Datetime_t;
+} QTEL_Datetime_t;
 
-#endif /* SIMCOM_7600E_TYPES_H*/
+#endif /* QUECTEL_EC25_TYPES_H*/

@@ -5,17 +5,17 @@
  *      Author: janoko
  */
 
-#include "../include/simcom/socket-client.h"
-#if SIM_EN_FEATURE_SOCKET
+#include <quectel-ec25/socket-client.h>
+#if QTEL_EN_FEATURE_SOCKET
 
-#include "../include/simcom.h"
-#include "../include/simcom/socket.h"
-#include "../include/simcom/utils.h"
+#include "../include/quectel-ec25.h"
+#include <quectel-ec25/socket.h>
+#include <quectel-ec25/utils.h>
 #include <string.h>
 
 
 #define Get_Available_LinkNum(hsimsock, linkNum) {\
-  for (int16_t i = 0; i < SIM_NUM_OF_SOCKET; i++) {\
+  for (int16_t i = 0; i < QTEL_NUM_OF_SOCKET; i++) {\
     if ((hsimsock)->sockets[i] == NULL) {\
       *(linkNum) = i;\
       break;\
@@ -24,12 +24,12 @@
 }
 
 
-static SIM_Status_t sockOpen(SIM_SocketClient_t *sock);
-static uint8_t isSockConnected(SIM_SocketClient_t *sock);
-static SIM_Status_t sockClose(SIM_SocketClient_t *sock);
+static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock);
+static uint8_t isSockConnected(QTEL_SocketClient_t *sock);
+static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock);
 
 
-SIM_Status_t SIM_SockClient_Init(SIM_SocketClient_t *sock, const char *host, uint16_t port, void *buffer)
+QTEL_Status_t SIM_SockClient_Init(QTEL_SocketClient_t *sock, const char *host, uint16_t port, void *buffer)
 {
   char *sockIP = sock->host;
   while (*host != '\0') {
@@ -41,39 +41,39 @@ SIM_Status_t SIM_SockClient_Init(SIM_SocketClient_t *sock, const char *host, uin
   sock->port = port;
 
   if (sock->config.timeout == 0)
-    sock->config.timeout = SIM_SOCK_DEFAULT_TO;
+    sock->config.timeout = QTEL_SOCK_DEFAULT_TO;
   if (sock->config.reconnectingDelay == 0)
     sock->config.reconnectingDelay = 5000;
 
   sock->linkNum = -1;
   sock->buffer = buffer;
   if (sock->buffer == NULL)
-    return SIM_ERROR;
+    return QTEL_ERROR;
 
   sock->state = SIM_SOCK_CLIENT_STATE_CLOSE;
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_SockClient_OnNetOpened(SIM_SocketClient_t *sock)
+QTEL_Status_t SIM_SockClient_OnNetOpened(QTEL_SocketClient_t *sock)
 {
   if (sock->state == SIM_SOCK_CLIENT_STATE_WAIT_NETOPEN) {
     return sockOpen(sock);
   }
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_SockClient_CheckEvents(SIM_SocketClient_t *sock)
+QTEL_Status_t SIM_SockClient_CheckEvents(QTEL_SocketClient_t *sock)
 {
-  SIM_HandlerTypeDef *hsim = sock->socketManager->hsim;
+  QTEL_HandlerTypeDef *hsim = sock->socketManager->hsim;
 
-  if (SIM_BITS_IS(sock->events, SIM_SOCK_EVENT_ON_OPENED)) {
-    SIM_BITS_UNSET(sock->events, SIM_SOCK_EVENT_ON_OPENED);
+  if (QTEL_BITS_IS(sock->events, SIM_SOCK_EVENT_ON_OPENED)) {
+    QTEL_BITS_UNSET(sock->events, SIM_SOCK_EVENT_ON_OPENED);
     if (sock->listeners.onConnected) sock->listeners.onConnected();
   }
-  if (SIM_BITS_IS(sock->events, SIM_SOCK_EVENT_ON_CLOSED)) {
-    SIM_BITS_UNSET(sock->events, SIM_SOCK_EVENT_ON_CLOSED);
+  if (QTEL_BITS_IS(sock->events, SIM_SOCK_EVENT_ON_CLOSED)) {
+    QTEL_BITS_UNSET(sock->events, SIM_SOCK_EVENT_ON_CLOSED);
     if (sock->state == SIM_SOCK_CLIENT_STATE_OPEN_PENDING) {
       sockOpen(sock);
     } else {
@@ -82,13 +82,13 @@ SIM_Status_t SIM_SockClient_CheckEvents(SIM_SocketClient_t *sock)
       if (sock->listeners.onClosed) sock->listeners.onClosed();
     }
   }
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_SockClient_Loop(SIM_SocketClient_t *sock)
+QTEL_Status_t SIM_SockClient_Loop(QTEL_SocketClient_t *sock)
 {
-  SIM_HandlerTypeDef *hsim = sock->socketManager->hsim;
+  QTEL_HandlerTypeDef *hsim = sock->socketManager->hsim;
 
   switch (sock->state) {
   case SIM_SOCK_CLIENT_STATE_WAIT_NETOPEN:
@@ -96,7 +96,7 @@ SIM_Status_t SIM_SockClient_Loop(SIM_SocketClient_t *sock)
     break;
 
   case SIM_SOCK_CLIENT_STATE_OPENING:
-    if (sock->tick.connecting && SIM_IsTimeout(hsim, sock->tick.connecting, 30000)) {
+    if (sock->tick.connecting && QTEL_IsTimeout(hsim, sock->tick.connecting, 30000)) {
       sock->state = SIM_SOCK_CLIENT_STATE_OPEN_PENDING;
       SIM_SockClient_Close(sock);
     }
@@ -106,7 +106,7 @@ SIM_Status_t SIM_SockClient_Loop(SIM_SocketClient_t *sock)
     if (sock->tick.reconnDelay == 0) {
 
     }
-    else if (SIM_IsTimeout(hsim, sock->tick.reconnDelay, 2000)) {
+    else if (QTEL_IsTimeout(hsim, sock->tick.reconnDelay, 2000)) {
       sockOpen(sock);
     }
     break;
@@ -114,60 +114,60 @@ SIM_Status_t SIM_SockClient_Loop(SIM_SocketClient_t *sock)
   default: break;
   }
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-void SIM_SockClient_SetBuffer(SIM_SocketClient_t *sock, void *buffer)
+void SIM_SockClient_SetBuffer(QTEL_SocketClient_t *sock, void *buffer)
 {
   sock->buffer = buffer;
 }
 
 
-SIM_Status_t SIM_SockClient_Open(SIM_SocketClient_t *sock, void *hsim)
+QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t *sock, void *hsim)
 {
-  if (((SIM_HandlerTypeDef*)hsim)->key != SIM_KEY)
-    return SIM_ERROR;
+  if (((QTEL_HandlerTypeDef*)hsim)->key != QTEL_KEY)
+    return QTEL_ERROR;
 
   sock->linkNum = -1;
-  sock->socketManager = &((SIM_HandlerTypeDef*)hsim)->socketManager;
+  sock->socketManager = &((QTEL_HandlerTypeDef*)hsim)->socketManager;
 
   if (sock->config.autoReconnect) {
     Get_Available_LinkNum(sock->socketManager, &(sock->linkNum));
-    if (sock->linkNum < 0) return SIM_ERROR;
+    if (sock->linkNum < 0) return QTEL_ERROR;
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
 
-  if (SIM_SockManager_NetOpen(sock->socketManager) != SIM_OK) return SIM_ERROR;
-  if (sock->socketManager->state != SIM_SOCKMGR_STATE_NET_OPEN) {
+  if (QTEL_SockManager_NetOpen(sock->socketManager) != QTEL_OK) return QTEL_ERROR;
+  if (sock->socketManager->state != QTEL_SOCKMGR_STATE_NET_OPEN) {
     sock->state = SIM_SOCK_CLIENT_STATE_WAIT_NETOPEN;
-    return SIM_OK;
+    return QTEL_OK;
   }
 
   sockOpen(sock);
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-SIM_Status_t SIM_SockClient_Close(SIM_SocketClient_t *sock)
+QTEL_Status_t SIM_SockClient_Close(QTEL_SocketClient_t *sock)
 {
-  SIM_HandlerTypeDef *hsim = sock->socketManager->hsim;
+  QTEL_HandlerTypeDef *hsim = sock->socketManager->hsim;
 
   AT_Data_t paramData[4] = {
       AT_Number(sock->linkNum),
   };
 
   if (AT_Command(&hsim->atCmd, "+CIPCLOSE", 1, paramData, 0, 0) != AT_OK) {
-    return SIM_ERROR;
+    return QTEL_ERROR;
   }
-  return SIM_ERROR;
+  return QTEL_ERROR;
 }
 
 
-uint16_t SIM_SockClient_SendData(SIM_SocketClient_t *sock, uint8_t *data, uint16_t length)
+uint16_t SIM_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint16_t length)
 {
-  SIM_HandlerTypeDef *hsim = sock->socketManager->hsim;
+  QTEL_HandlerTypeDef *hsim = sock->socketManager->hsim;
 
   if (sock->state != SIM_SOCK_CLIENT_STATE_OPEN) return 0;
 
@@ -187,13 +187,13 @@ uint16_t SIM_SockClient_SendData(SIM_SocketClient_t *sock, uint8_t *data, uint16
 }
 
 
-static SIM_Status_t sockOpen(SIM_SocketClient_t *sock)
+static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 {
-  SIM_HandlerTypeDef *hsim = sock->socketManager->hsim;
+  QTEL_HandlerTypeDef *hsim = sock->socketManager->hsim;
 
   if (sock->linkNum == -1) {
     Get_Available_LinkNum(sock->socketManager, &(sock->linkNum));
-    if (sock->linkNum < 0) return SIM_ERROR;
+    if (sock->linkNum < 0) return QTEL_ERROR;
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
 
@@ -207,24 +207,24 @@ static SIM_Status_t sockOpen(SIM_SocketClient_t *sock)
   if (isSockConnected(sock)) {
     sockClose(sock);
     sock->state = SIM_SOCK_CLIENT_STATE_OPEN_PENDING;
-    return SIM_ERROR;
+    return QTEL_ERROR;
   }
 
   sock->state = SIM_SOCK_CLIENT_STATE_OPENING;
   sock->tick.connecting = hsim->getTick();
   if (AT_Command(&hsim->atCmd, "+CIPOPEN", 4, paramData, 0, 0) != AT_OK) {
     sock->state = SIM_SOCK_CLIENT_STATE_OPEN_PENDING;
-    return SIM_ERROR;
+    return QTEL_ERROR;
   }
 
   sock->listeners.onConnecting();
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
-static uint8_t isSockConnected(SIM_SocketClient_t *sock)
+static uint8_t isSockConnected(QTEL_SocketClient_t *sock)
 {
-  SIM_HandlerTypeDef *hsim = sock->socketManager->hsim;
+  QTEL_HandlerTypeDef *hsim = sock->socketManager->hsim;
 
   if (sock->linkNum < 0) return 0;
   AT_Data_t respData[10] = {
@@ -248,19 +248,19 @@ static uint8_t isSockConnected(SIM_SocketClient_t *sock)
 }
 
 
-static SIM_Status_t sockClose(SIM_SocketClient_t *sock)
+static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
 {
-  SIM_HandlerTypeDef *hsim = sock->socketManager->hsim;
+  QTEL_HandlerTypeDef *hsim = sock->socketManager->hsim;
 
-  if (sock->linkNum < 0) return SIM_ERROR;
+  if (sock->linkNum < 0) return QTEL_ERROR;
 
   AT_Data_t paramData = AT_Number(sock->linkNum);
 
   if (AT_Command(&hsim->atCmd, "+CIPCLOSE", 1, &paramData, 0, 0) != AT_OK) {
-    return SIM_ERROR;
+    return QTEL_ERROR;
   }
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-#endif /* SIM_EN_FEATURE_SOCKET */
+#endif /* QTEL_EN_FEATURE_SOCKET */

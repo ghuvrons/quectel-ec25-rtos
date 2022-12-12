@@ -1,17 +1,18 @@
 /*
+
  * socket-client.h
  *
  *  Created on: Nov 10, 2022
  *      Author: janoko
  */
 
-#ifndef SIMCOM_7600E_SOCKET_CLIENT_H_
-#define SIMCOM_7600E_SOCKET_CLIENT_H_
+#ifndef QUECTEL_EC25_SOCKET_CLIENT_H_
+#define QUECTEL_EC25_SOCKET_CLIENT_H_
 
-#include "conf.h"
-#if SIM_EN_FEATURE_SOCKET
+#include <quectel-ec25/conf.h>
+#if QTEL_EN_FEATURE_SOCKET
 
-#include "types.h"
+#include <quectel-ec25/types.h>
 
 #define SIM_SOCK_UDP    0
 #define SIM_SOCK_TCPIP  1
@@ -31,7 +32,7 @@ enum {
 
 
 typedef struct {
-  struct SIM_Socket_HandlerTypeDef *socketManager;
+  struct QTEL_Socket_HandlerTypeDef *socketManager;
   uint8_t     state;
   uint8_t     events;               // Events flag
   int8_t      linkNum;
@@ -64,19 +65,19 @@ typedef struct {
     void (*onClosed)(void);
     void (*onReceived)(void *buffer);
   } listeners;
-} SIM_SocketClient_t;
+} QTEL_SocketClient_t;
 
 
 // SOCKET
-SIM_Status_t  SIM_SockClient_Init(SIM_SocketClient_t*, const char *host, uint16_t port, void *buffer);
-SIM_Status_t  SIM_SockClient_CheckEvents(SIM_SocketClient_t*);
-SIM_Status_t  SIM_SockClient_OnNetOpened(SIM_SocketClient_t*);
-SIM_Status_t  SIM_SockClient_Loop(SIM_SocketClient_t*);
-void          SIM_SockClient_SetBuffer(SIM_SocketClient_t*, void *buffer);
-SIM_Status_t  SIM_SockClient_Open(SIM_SocketClient_t*, void*);
-SIM_Status_t  SIM_SockClient_Close(SIM_SocketClient_t*);
-uint16_t      SIM_SockClient_SendData(SIM_SocketClient_t*, uint8_t *data, uint16_t length);
+QTEL_Status_t  SIM_SockClient_Init(QTEL_SocketClient_t*, const char *host, uint16_t port, void *buffer);
+QTEL_Status_t  SIM_SockClient_CheckEvents(QTEL_SocketClient_t*);
+QTEL_Status_t  SIM_SockClient_OnNetOpened(QTEL_SocketClient_t*);
+QTEL_Status_t  SIM_SockClient_Loop(QTEL_SocketClient_t*);
+void          SIM_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
+QTEL_Status_t  SIM_SockClient_Open(QTEL_SocketClient_t*, void*);
+QTEL_Status_t  SIM_SockClient_Close(QTEL_SocketClient_t*);
+uint16_t      SIM_SockClient_SendData(QTEL_SocketClient_t*, uint8_t *data, uint16_t length);
 
 
-#endif /* SIM_EN_FEATURE_SOCKET */
-#endif /* SIMCOM_7600E_SOCKET_CLIENT_H_ */
+#endif /* QTEL_EN_FEATURE_SOCKET */
+#endif /* QUECTEL_EC25_SOCKET_CLIENT_H_ */

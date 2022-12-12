@@ -5,84 +5,84 @@
  *      Author: janoko
  */
 
-#include "../include/simcom/gps.h"
-#if SIM_EN_FEATURE_GPS
+#include <quectel-ec25/gps.h>
+#if QTEL_EN_FEATURE_GPS
 
-#include "../include/simcom.h"
+#include "../include/quectel-ec25.h"
 #include "../events.h"
 #include <stdlib.h>
 #include <string.h>
 
-#define SIM_GPS_CONFIG_KEY 0xAE
+#define QTEL_GPS_CONFIG_KEY 0xAE
 
-static const SIM_GPS_Config_t defaultConfig = {
-  .accuracy = 50,
-  .antenaMode = SIM_GPS_ANT_ACTIVE,
+static const QTEL_GPS_Config_t defaultConfig = {
+  .accuracy           = 50,
+  .antenaMode         = QTEL_GPS_ANT_ACTIVE,
   .isAutoDownloadXTRA = 1,
-  .outputRate = SIM_GPS_MEARATE_1HZ,
-  .reportInterval = 10,
-  .NMEA = SIM_GPS_RPT_GPGGA|SIM_GPS_RPT_GPRMC|SIM_GPS_RPT_GPGSV|SIM_GPS_RPT_GPGSA|SIM_GPS_RPT_GPVTG,
-  .MOAGPS_Method = SIM_GPS_METHOD_USER_PLANE,
-  .agpsServer =  "supl.google.com:7276",
+  .outputRate         = QTEL_GPS_MEARATE_1HZ,
+  .reportInterval     = 10,
+  .NMEA               = QTEL_GPS_RPT_GPGGA|QTEL_GPS_RPT_GPRMC|QTEL_GPS_RPT_GPGSV|QTEL_GPS_RPT_GPGSA|QTEL_GPS_RPT_GPVTG,
+  .MOAGPS_Method      = QTEL_GPS_METHOD_USER_PLANE,
+  .agpsServer         =  "supl.google.com:7276",
   .isAgpsServerSecure = 0,
 };
 
-static SIM_Status_t setConfiguration(SIM_GPS_HandlerTypeDef*);
-static SIM_Status_t activate(SIM_GPS_HandlerTypeDef*, uint8_t isActivate);
+static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef*);
+static QTEL_Status_t activate(QTEL_GPS_HandlerTypeDef*, uint8_t isActivate);
 static void onGetNMEA(void *app, uint8_t *data, uint16_t len);
 
-SIM_Status_t SIM_GPS_Init(SIM_GPS_HandlerTypeDef *hsimGps, void *hsim)
+QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
 {
-  if (((SIM_HandlerTypeDef*)hsim)->key != SIM_KEY)
-    return SIM_ERROR;
+  if (((QTEL_HandlerTypeDef*)qtelPtr)->key != QTEL_KEY)
+    return QTEL_ERROR;
 
-  hsimGps->hsim = hsim;
-  hsimGps->state = SIM_GPS_STATE_NON_ACTIVE;
-  hsimGps->stateTick = 0;
+  qtelGps->qtel = qtelPtr;
+  qtelGps->state = QTEL_GPS_STATE_NON_ACTIVE;
+  qtelGps->stateTick = 0;
 
-  if (hsimGps->isConfigured != SIM_GPS_CONFIG_KEY) {
-    hsimGps->isConfigured = SIM_GPS_CONFIG_KEY;
-    memcpy(&hsimGps->config, &defaultConfig, sizeof(SIM_GPS_Config_t));
+  if (qtelGps->isConfigured != QTEL_GPS_CONFIG_KEY) {
+    qtelGps->isConfigured = QTEL_GPS_CONFIG_KEY;
+    memcpy(&qtelGps->config, &defaultConfig, sizeof(QTEL_GPS_Config_t));
   }
 
-  lwgps_init(&hsimGps->lwgps);
+  lwgps_init(&qtelGps->lwgps);
 
-  AT_ReadlineOn(&((SIM_HandlerTypeDef*)hsim)->atCmd, "$", (SIM_HandlerTypeDef*) hsim, onGetNMEA);
+  AT_ReadlineOn(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "$", (QTEL_HandlerTypeDef*) qtelPtr, onGetNMEA);
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
-void SIM_GPS_SetupConfig(SIM_GPS_HandlerTypeDef *hsimGps, SIM_GPS_Config_t *config)
+void QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_Config_t *config)
 {
-  hsimGps->isConfigured = SIM_GPS_CONFIG_KEY;
-  memcpy(&hsimGps->config, config, sizeof(SIM_GPS_Config_t));
+  qtelGps->isConfigured = QTEL_GPS_CONFIG_KEY;
+  memcpy(&qtelGps->config, config, sizeof(QTEL_GPS_Config_t));
 }
 
-void SIM_GPS_SetState(SIM_GPS_HandlerTypeDef *hsimGps, uint8_t newState)
+void QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef *qtelGps, uint8_t newState)
 {
-  hsimGps->state = newState;
-  ((SIM_HandlerTypeDef*) hsimGps->hsim)->rtos.eventSet(SIM_RTOS_EVT_GPS_NEW_STATE);
+  qtelGps->state = newState;
+  ((QTEL_HandlerTypeDef*) qtelGps->qtel)->rtos.eventSet(QTEL_RTOS_EVT_GPS_NEW_STATE);
 }
 
 
-void SIM_GPS_OnNewState(SIM_GPS_HandlerTypeDef *hsimGps)
+void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
-  SIM_HandlerTypeDef *hsim = hsimGps->hsim;
+  QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
 
-  hsimGps->stateTick = hsim->getTick();
+  qtelGps->stateTick = qtelPtr->getTick();
 
-  switch (hsimGps->state) {
-  case SIM_GPS_STATE_NON_ACTIVE:
+  switch (qtelGps->state) {
+  case QTEL_GPS_STATE_NON_ACTIVE:
     break;
 
-  case SIM_GPS_STATE_SETUP:
-    if (activate(hsimGps, 0) == SIM_OK)
-      if (setConfiguration(hsimGps) == SIM_OK)
-        SIM_GPS_SetState(hsimGps, SIM_GPS_STATE_ACTIVE);
+  case QTEL_GPS_STATE_SETUP:
+    if (activate(qtelGps, 0) == QTEL_OK)
+      if (setConfiguration(qtelGps) == QTEL_OK)
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_ACTIVE);
     break;
 
-  case SIM_GPS_STATE_ACTIVE:
-    activate(hsimGps, 1);
+  case QTEL_GPS_STATE_ACTIVE:
+    activate(qtelGps, 1);
     break;
 
   default: break;
@@ -92,75 +92,75 @@ void SIM_GPS_OnNewState(SIM_GPS_HandlerTypeDef *hsimGps)
 }
 
 
-static SIM_Status_t setConfiguration(SIM_GPS_HandlerTypeDef *hsimGps)
+static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
-  SIM_Status_t status = SIM_ERROR;
-  SIM_HandlerTypeDef *hsim = hsimGps->hsim;
+  QTEL_Status_t status = QTEL_ERROR;
+  QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
   AT_Data_t paramData[2];
 
   // set Accuracy
-  AT_DataSetNumber(&paramData[0], hsimGps->config.accuracy);
-  if (AT_Command(&hsim->atCmd, "+CGPSHOR", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+  AT_DataSetNumber(&paramData[0], qtelGps->config.accuracy);
+  if (AT_Command(&qtelPtr->atCmd, "+CGPSHOR", 1, paramData, 0, 0) != AT_OK) goto endCmd;
 
-  AT_DataSetNumber(&paramData[0], hsimGps->config.outputRate);
-  if (AT_Command(&hsim->atCmd, "+CGPSNMEARATE", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+  AT_DataSetNumber(&paramData[0], qtelGps->config.outputRate);
+  if (AT_Command(&qtelPtr->atCmd, "+CGPSNMEARATE", 1, paramData, 0, 0) != AT_OK) goto endCmd;
 
-  AT_DataSetNumber(&paramData[0], hsimGps->config.isAutoDownloadXTRA? 1:0);
-  if (AT_Command(&hsim->atCmd, "+CGPSXDAUTO", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+  AT_DataSetNumber(&paramData[0], qtelGps->config.isAutoDownloadXTRA? 1:0);
+  if (AT_Command(&qtelPtr->atCmd, "+CGPSXDAUTO", 1, paramData, 0, 0) != AT_OK) goto endCmd;
 
-  AT_DataSetNumber(&paramData[0], hsimGps->config.reportInterval);
-  AT_DataSetNumber(&paramData[1], hsimGps->config.NMEA);
-  if (AT_Command(&hsim->atCmd, "+CGPSINFOCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  AT_DataSetNumber(&paramData[0], qtelGps->config.reportInterval);
+  AT_DataSetNumber(&paramData[1], qtelGps->config.NMEA);
+  if (AT_Command(&qtelPtr->atCmd, "+CGPSINFOCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
 
-  AT_DataSetNumber(&paramData[0], hsimGps->config.MOAGPS_Method);
-  if (AT_Command(&hsim->atCmd, "+CGPSMD", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+  AT_DataSetNumber(&paramData[0], qtelGps->config.MOAGPS_Method);
+  if (AT_Command(&qtelPtr->atCmd, "+CGPSMD", 1, paramData, 0, 0) != AT_OK) goto endCmd;
 
-  if (hsimGps->config.agpsServer != 0) {
-    AT_DataSetString(&paramData[0], hsimGps->config.agpsServer);
-    if (AT_Command(&hsim->atCmd, "+CGPSURL", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+  if (qtelGps->config.agpsServer != 0) {
+    AT_DataSetString(&paramData[0], qtelGps->config.agpsServer);
+    if (AT_Command(&qtelPtr->atCmd, "+CGPSURL", 1, paramData, 0, 0) != AT_OK) goto endCmd;
 
-    AT_DataSetNumber(&paramData[0], hsimGps->config.isAgpsServerSecure? 1:0);
-    if (AT_Command(&hsim->atCmd, "+CGPSSSL", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+    AT_DataSetNumber(&paramData[0], qtelGps->config.isAgpsServerSecure? 1:0);
+    if (AT_Command(&qtelPtr->atCmd, "+CGPSSSL", 1, paramData, 0, 0) != AT_OK) goto endCmd;
   }
 
-  switch (hsimGps->config.antenaMode) {
-  case SIM_GPS_ANT_ACTIVE:
+  switch (qtelGps->config.antenaMode) {
+  case QTEL_GPS_ANT_ACTIVE:
     AT_DataSetNumber(&paramData[0], 3050);
-    if (AT_Command(&hsim->atCmd, "+CVAUXV", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+    if (AT_Command(&qtelPtr->atCmd, "+CVAUXV", 1, paramData, 0, 0) != AT_OK) goto endCmd;
     AT_DataSetNumber(&paramData[0], 1);
-    if (AT_Command(&hsim->atCmd, "+CVAUXS", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+    if (AT_Command(&qtelPtr->atCmd, "+CVAUXS", 1, paramData, 0, 0) != AT_OK) goto endCmd;
     break;
 
-  case SIM_GPS_ANT_PASSIVE:
+  case QTEL_GPS_ANT_PASSIVE:
   default:
     AT_DataSetNumber(&paramData[0], 0);
-    if (AT_Command(&hsim->atCmd, "+CVAUXS", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+    if (AT_Command(&qtelPtr->atCmd, "+CVAUXS", 1, paramData, 0, 0) != AT_OK) goto endCmd;
     break;
   }
 
-  status = SIM_OK;
+  status = QTEL_OK;
 
 endCmd:
   return status;
 }
 
-static SIM_Status_t activate(SIM_GPS_HandlerTypeDef *hsimGps, uint8_t isActivate)
+static QTEL_Status_t activate(QTEL_GPS_HandlerTypeDef *qtelGps, uint8_t isActivate)
 {
-  SIM_HandlerTypeDef *hsim = hsimGps->hsim;
+  QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
   AT_Data_t paramData[1] = {
       AT_Number(isActivate? 1:0),
   };
 
-  if (AT_Command(&hsim->atCmd, "+CGPS", 1, paramData, 0, 0) != AT_OK) return SIM_ERROR;
-  return SIM_OK;
+  if (AT_Command(&qtelPtr->atCmd, "+CGPS", 1, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
+  return QTEL_OK;
 }
 
 static void onGetNMEA(void *app, uint8_t *data, uint16_t len)
 {
-  SIM_HandlerTypeDef *hsim = (SIM_HandlerTypeDef*)app;
+  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
   *(data+len) = 0;
 
-  lwgps_process(&hsim->gps.lwgps, data, len);
+  lwgps_process(&qtelPtr->gps.lwgps, data, len);
 }
 
-#endif /* SIM_EN_FEATURE_GPS */
+#endif /* QTEL_EN_FEATURE_GPS */

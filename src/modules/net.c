@@ -5,32 +5,32 @@
  *      Author: janoko
  */
 
-#include "../include/simcom/net.h"
-#if SIM_EN_FEATURE_NET
+#include <quectel-ec25/net.h>
+#if QTEL_EN_FEATURE_NET
 
 #include "../events.h"
-#include "../include/simcom.h"
-#include "../include/simcom/utils.h"
+#include "../include/quectel-ec25.h"
+#include <quectel-ec25/utils.h>
 #include <stdlib.h>
 #include <string.h>
 
 
-SIM_Status_t SIM_NET_Init(SIM_NET_HandlerTypeDef *hsimnet, void *hsim)
+QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef *hsimnet, void *hsim)
 {
-  if (((SIM_HandlerTypeDef*)hsim)->key != SIM_KEY)
-    return SIM_ERROR;
+  if (((QTEL_HandlerTypeDef*)hsim)->key != QTEL_KEY)
+    return QTEL_ERROR;
 
   hsimnet->hsim         = hsim;
   hsimnet->status       = 0;
   hsimnet->events       = 0;
   hsimnet->gprs_status  = 0;
-  hsimnet->state        = SIM_NET_STATE_NON_ACTIVE;
+  hsimnet->state        = QTEL_NET_STATE_NON_ACTIVE;
 
-  return SIM_OK;
+  return QTEL_OK;
 }
 
 
-void SIM_NET_SetupAPN(SIM_NET_HandlerTypeDef *hsimnet, char *APN, char *user, char *pass)
+void QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef *hsimnet, char *APN, char *user, char *pass)
 {
   hsimnet->APN.APN   = APN;
   hsimnet->APN.user  = 0;
@@ -43,44 +43,44 @@ void SIM_NET_SetupAPN(SIM_NET_HandlerTypeDef *hsimnet, char *APN, char *user, ch
 }
 
 
-void SIM_NET_SetState(SIM_NET_HandlerTypeDef *hsimnet, uint8_t newState)
+void QTEL_NET_SetState(QTEL_NET_HandlerTypeDef *hsimnet, uint8_t newState)
 {
   hsimnet->state = newState;
-  ((SIM_HandlerTypeDef*) hsimnet->hsim)->rtos.eventSet(SIM_RTOS_EVT_NET_NEW_STATE);
+  ((QTEL_HandlerTypeDef*) hsimnet->hsim)->rtos.eventSet(QTEL_RTOS_EVT_NET_NEW_STATE);
 }
 
 
-void SIM_NET_OnNewState(SIM_NET_HandlerTypeDef *hsimnet)
+void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *hsimnet)
 {
-  SIM_HandlerTypeDef *hsim = hsimnet->hsim;
+  QTEL_HandlerTypeDef *hsim = hsimnet->hsim;
 
   hsimnet->stateTick = hsim->getTick();
 
   switch (hsimnet->state) {
-  case SIM_NET_STATE_SETUP_APN:
+  case QTEL_NET_STATE_SETUP_APN:
     if (hsimnet->APN.APN != NULL) {
-      if (SIM_NET_SetAPN(hsimnet) == SIM_OK)
+      if (QTEL_NET_SetAPN(hsimnet) == QTEL_OK)
       {
-        SIM_Debug("APS was set");
+        QTEL_Debug("APS was set");
       }
     }
-    SIM_NET_SetState(hsimnet, SIM_NET_STATE_CHECK_GPRS);
+    QTEL_NET_SetState(hsimnet, QTEL_NET_STATE_CHECK_GPRS);
     break;
 
-  case SIM_NET_STATE_CHECK_GPRS:
-    if (!SIM_IS_STATUS(hsimnet, SIM_NET_STATUS_APN_WAS_SET)) {
-      SIM_NET_SetState(hsimnet, SIM_NET_STATE_SETUP_APN);
+  case QTEL_NET_STATE_CHECK_GPRS:
+    if (!QTEL_IS_STATUS(hsimnet, QTEL_NET_STATUS_APN_WAS_SET)) {
+      QTEL_NET_SetState(hsimnet, QTEL_NET_STATE_SETUP_APN);
       break;
     }
-    SIM_Debug("Checking GPRS...");
-    if (SIM_NET_GPRS_Check(hsimnet) == SIM_OK) {
-      SIM_Debug("GPRS registered%s", (hsimnet->gprs_status == 5)? " (roaming)":"");
+    QTEL_Debug("Checking GPRS...");
+    if (QTEL_NET_GPRS_Check(hsimnet) == QTEL_OK) {
+      QTEL_Debug("GPRS registered%s", (hsimnet->gprs_status == 5)? " (roaming)":"");
     }
     else if (hsimnet->gprs_status == 0) {
-      SIM_NET_SetState(hsimnet, SIM_NET_STATE_SETUP_APN);
+      QTEL_NET_SetState(hsimnet, QTEL_NET_STATE_SETUP_APN);
     }
     else if (hsim->network_status == 2) {
-      SIM_Debug("GPRS Registering....");
+      QTEL_Debug("GPRS Registering....");
     }
     break;
 
@@ -91,14 +91,14 @@ void SIM_NET_OnNewState(SIM_NET_HandlerTypeDef *hsimnet)
 }
 
 
-void SIM_NET_Loop(SIM_NET_HandlerTypeDef *hsimnet)
+void QTEL_NET_Loop(QTEL_NET_HandlerTypeDef *hsimnet)
 {
-  SIM_HandlerTypeDef *hsim = hsimnet->hsim;
+  QTEL_HandlerTypeDef *hsim = hsimnet->hsim;
 
   switch (hsimnet->state) {
-  case SIM_NET_STATE_CHECK_GPRS:
-    if (SIM_IsTimeout(hsim, hsimnet->stateTick, 2000)) {
-      SIM_NET_SetState(hsimnet, SIM_NET_STATE_CHECK_GPRS);
+  case QTEL_NET_STATE_CHECK_GPRS:
+    if (QTEL_IsTimeout(hsim, hsimnet->stateTick, 2000)) {
+      QTEL_NET_SetState(hsimnet, QTEL_NET_STATE_CHECK_GPRS);
     }
     break;
 
@@ -109,10 +109,10 @@ void SIM_NET_Loop(SIM_NET_HandlerTypeDef *hsimnet)
 }
 
 
-SIM_Status_t SIM_NET_GPRS_Check(SIM_NET_HandlerTypeDef *hsimnet)
+QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef *hsimnet)
 {
-  SIM_HandlerTypeDef *hsim = hsimnet->hsim;
-  SIM_Status_t status = SIM_ERROR;
+  QTEL_HandlerTypeDef *hsim = hsimnet->hsim;
+  QTEL_Status_t status = QTEL_ERROR;
 
   uint8_t lac[2]; // location area code
   uint8_t ci[2];  // Cell Identify
@@ -132,27 +132,27 @@ SIM_Status_t SIM_NET_GPRS_Check(SIM_NET_HandlerTypeDef *hsimnet)
 
   // check response
   if (hsimnet->gprs_status == 1 || hsimnet->gprs_status == 5) {
-    status = SIM_OK;
-    if (hsimnet->state <= SIM_NET_STATE_CHECK_GPRS) {
-      SIM_NET_SetState(hsimnet, SIM_NET_STATE_ONLINE);
+    status = QTEL_OK;
+    if (hsimnet->state <= QTEL_NET_STATE_CHECK_GPRS) {
+      QTEL_NET_SetState(hsimnet, QTEL_NET_STATE_ONLINE);
     }
     if (hsimnet->gprs_status == 5)
-      SIM_SET_STATUS(hsimnet, SIM_NET_STATUS_GPRS_ROAMING);
+      QTEL_SET_STATUS(hsimnet, QTEL_NET_STATUS_GPRS_ROAMING);
   }
   else {
-    if (hsimnet->state > SIM_NET_STATE_CHECK_GPRS)
-      hsimnet->state = SIM_NET_STATE_CHECK_GPRS;
-    SIM_UNSET_STATUS(hsimnet, SIM_NET_STATUS_GPRS_ROAMING);
+    if (hsimnet->state > QTEL_NET_STATE_CHECK_GPRS)
+      hsimnet->state = QTEL_NET_STATE_CHECK_GPRS;
+    QTEL_UNSET_STATUS(hsimnet, QTEL_NET_STATUS_GPRS_ROAMING);
   }
 
   return status;
 }
 
 
-SIM_Status_t SIM_NET_SetAPN(SIM_NET_HandlerTypeDef *hsimnet)
+QTEL_Status_t QTEL_NET_SetAPN(QTEL_NET_HandlerTypeDef *hsimnet)
 {
-  SIM_HandlerTypeDef *hsim = hsimnet->hsim;
-  SIM_Status_t status = SIM_ERROR;
+  QTEL_HandlerTypeDef *hsim = hsimnet->hsim;
+  QTEL_Status_t status = QTEL_ERROR;
   char *APN = hsimnet->APN.APN;
   char *user = hsimnet->APN.user;
   char *pass = hsimnet->APN.pass;
@@ -182,12 +182,12 @@ SIM_Status_t SIM_NET_SetAPN(SIM_NET_HandlerTypeDef *hsimnet)
       if (AT_Command(&hsim->atCmd, "+CGAUTH", 4, paramData, 0, 0) != AT_OK) goto endCmd;
   }
 
-  SIM_SET_STATUS(hsimnet, SIM_NET_STATUS_APN_WAS_SET);
-  status = SIM_OK;
+  QTEL_SET_STATUS(hsimnet, QTEL_NET_STATUS_APN_WAS_SET);
+  status = QTEL_OK;
 
 endCmd:
   return status;
 }
 
 
-#endif /* SIM_EN_FEATURE_NET */
+#endif /* QTEL_EN_FEATURE_NET */
