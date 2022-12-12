@@ -21,7 +21,7 @@ typedef struct {
   void        *hsim;
   uint8_t     status;
   char        *server;
-  int8_t      region;
+  uint16_t    port;
   uint32_t    syncTick;
   void (*onSynced)(QTEL_Datetime_t);
 
@@ -32,7 +32,7 @@ typedef struct {
 } QTEL_NTP_HandlerTypeDef;
 
 QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef*, void *hsim);
-QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef*, char *server, int8_t region);
+QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef*, char *server, uint16_t port);
 QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef*);
 
 QTEL_Status_t QTEL_NTP_SetServer(QTEL_NTP_HandlerTypeDef*);

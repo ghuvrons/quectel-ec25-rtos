@@ -30,17 +30,21 @@ QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *hsimntp, void *hsim)
   hsimntp->config.resyncInterval = 24*3600;
   hsimntp->config.retryInterval = 5000;
 
-  AT_On(&((QTEL_HandlerTypeDef*)hsim)->atCmd, "+CNTP", (QTEL_HandlerTypeDef*) hsim, 0, 0, onSynced);
+  AT_On(&((QTEL_HandlerTypeDef*)hsim)->atCmd, "+QNTP", (QTEL_HandlerTypeDef*) hsim, 0, 0, onSynced);
 
   return QTEL_OK;
 }
 
 
 QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef *hsimntp,
-                                 char *server, int8_t region)
+                                 char *server, uint16_t port)
 {
   hsimntp->server = server;
-  hsimntp->region = region;
+  if (port == 0)
+    hsimntp->port = 123;
+  else
+    hsimntp->port = port;
+
   QTEL_UNSET_STATUS(hsimntp, QTEL_NTP_SERVER_WAS_SET);
   QTEL_UNSET_STATUS(hsimntp, QTEL_NTP_WAS_SYNCED);
   return QTEL_OK;
@@ -74,12 +78,13 @@ QTEL_Status_t QTEL_NTP_SetServer(QTEL_NTP_HandlerTypeDef *hsimntp)
   if (hsimntp->server == 0 || strlen(hsimntp->server) == 0) return QTEL_ERROR;
 
   QTEL_HandlerTypeDef *hsim = hsimntp->hsim;
-  AT_Data_t paramData[2] = {
+  AT_Data_t paramData[3] = {
+    AT_Number(1),               // cid
     AT_String(hsimntp->server),
-    AT_Number(hsimntp->region),
+    AT_Number(hsimntp->port),
   };
 
-  if (AT_Command(&hsim->atCmd, "+CNTP", 2, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
+  if (AT_Command(&hsim->atCmd, "+QNTP", 3, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
   QTEL_SET_STATUS(hsimntp, QTEL_NTP_SERVER_WAS_SET);
   syncNTP(hsimntp);
   return QTEL_OK;
