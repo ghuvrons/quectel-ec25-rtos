@@ -157,30 +157,31 @@ QTEL_Status_t QTEL_NET_SetAPN(QTEL_NET_HandlerTypeDef *hsimnet)
   char *user = hsimnet->APN.user;
   char *pass = hsimnet->APN.pass;
   uint8_t cid = 1;
-  AT_Data_t paramData[4] = {
+  AT_Data_t paramData[6] = {
     AT_Number(cid),
-    AT_String("IP"),
+    AT_String("IPV4V6"),
     AT_String(APN),
     AT_String(""),
+    AT_String(""),
+    AT_Number(0),
   };
 
   if (AT_Command(&hsim->atCmd, "+CGDCONT", 3, paramData, 0, 0) != AT_OK) goto endCmd;
 
+  AT_DataSetNumber(&paramData[1], 3);
   if (user == NULL) {
-    AT_DataSetNumber(&paramData[1], 0);
-    if (AT_Command(&hsim->atCmd, "+CGAUTH", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+    AT_DataSetNumber(&paramData[5], 0);
   }
   else {
-    AT_DataSetNumber(&paramData[1], 3);
-    AT_DataSetString(&paramData[2], user);
-    AT_DataSetString(&paramData[3], pass);
+    AT_DataSetString(&paramData[3], user);
+    AT_DataSetNumber(&paramData[5], 3);
 
-    if (pass == NULL) {
-      if (AT_Command(&hsim->atCmd, "+CGAUTH", 3, paramData, 0, 0) != AT_OK) goto endCmd;
-    }
-    else
-      if (AT_Command(&hsim->atCmd, "+CGAUTH", 4, paramData, 0, 0) != AT_OK) goto endCmd;
+    if (pass != NULL)
+      AT_DataSetString(&paramData[4], pass);
+
   }
+
+  if (AT_Command(&hsim->atCmd, "+QICSGP", 6, paramData, 0, 0) != AT_OK) goto endCmd;
 
   QTEL_SET_STATUS(hsimnet, QTEL_NET_STATUS_APN_WAS_SET);
   status = QTEL_OK;
