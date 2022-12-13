@@ -27,6 +27,7 @@ enum {
 
 typedef struct QTEL_Socket_HandlerTypeDef {
   void                *qtel;
+  uint8_t             contextId;
   uint8_t             state;
   uint32_t            stateTick;
   uint8_t             socketsNb;

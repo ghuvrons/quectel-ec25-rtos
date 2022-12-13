@@ -25,6 +25,7 @@
 
 
 static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock);
+static QTEL_Status_t sockReadRecvData(QTEL_SocketClient_t *sock);
 static uint8_t isSockConnected(QTEL_SocketClient_t *sock);
 static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock);
 
@@ -81,6 +82,10 @@ QTEL_Status_t SIM_SockClient_CheckEvents(QTEL_SocketClient_t *sock)
       sock->tick.reconnDelay = qtelPtr->getTick();
       if (sock->listeners.onClosed) sock->listeners.onClosed();
     }
+  }
+  if (QTEL_BITS_IS(sock->events, SIM_SOCK_EVENT_ON_RECV_DATA_AVAILABLE)) {
+    QTEL_BITS_UNSET(sock->events, SIM_SOCK_EVENT_ON_RECV_DATA_AVAILABLE);
+    sockReadRecvData(sock);
   }
   return QTEL_OK;
 }
@@ -176,9 +181,14 @@ uint16_t SIM_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint1
       AT_Number(length),
   };
 
-  if (AT_CommandWrite(&qtelPtr->atCmd, "+CIPSEND", ">",
+  uint8_t resp[16];
+  AT_Data_t respData[1] = {
+      AT_Buffer(resp, 16),
+  };
+
+  if (AT_CommandWrite(&qtelPtr->atCmd, "+QISEND", "> ", "SEND ",
                       data, length,
-                      2, paramData, 0, 0) != AT_OK)
+                      2, paramData, 1, respData) != AT_OK)
   {
     return 0;
   }
@@ -197,7 +207,8 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
 
-  AT_Data_t paramData[4] = {
+  AT_Data_t paramData[6] = {
+      AT_Number(sock->socketManager->contextId),
       AT_Number(sock->linkNum),
       AT_String("TCP"),
       AT_String(sock->host),
@@ -212,7 +223,7 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 
   sock->state = SIM_SOCK_CLIENT_STATE_OPENING;
   sock->tick.connecting = qtelPtr->getTick();
-  if (AT_Command(&qtelPtr->atCmd, "+CIPOPEN", 4, paramData, 0, 0) != AT_OK) {
+  if (AT_Command(&qtelPtr->atCmd, "+QIOPEN", 5, paramData, 0, 0) != AT_OK) {
     sock->state = SIM_SOCK_CLIENT_STATE_OPEN_PENDING;
     return QTEL_ERROR;
   }
@@ -222,26 +233,54 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
   return QTEL_OK;
 }
 
+
+static QTEL_Status_t sockReadRecvData(QTEL_SocketClient_t *sock)
+{
+  QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
+  AT_Data_t paramData[1] = {
+      AT_Number(sock->linkNum),
+  };
+  AT_Data_t respData[1] = {
+      AT_Number(0),
+  };
+
+  if (AT_CommandReadInto(&qtelPtr->atCmd, "+QIRD", sock->buffer, (uint16_t*) &respData->value.number, 1, paramData, 1, respData) != AT_OK) {
+    return QTEL_ERROR;
+  }
+  return QTEL_OK;
+}
+
+
 static uint8_t isSockConnected(QTEL_SocketClient_t *sock)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
   if (sock->linkNum < 0) return 0;
-  AT_Data_t respData[10] = {
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
-      AT_Number(0),
+
+  AT_Data_t paramData[2] = {
+      AT_Number(1),             // query type: specific id
+      AT_Number(sock->linkNum),
   };
 
-  if (AT_Check(&qtelPtr->atCmd, "+CIPCLOSE", 10, respData) == AT_OK) {
-    if (respData[sock->linkNum].value.number == 1) return 1;
+  uint8_t serviceTypestr[14];
+  uint8_t ipStr[17];
+  AT_Data_t respData[7] = {
+      AT_Number(0),                                       // number: connectID
+      AT_Buffer(serviceTypestr, sizeof(serviceTypestr)),  // string: service type
+      AT_Buffer(ipStr, sizeof(ipStr)),                    // string: IP
+      AT_Number(0),                                       // number: remote port
+      AT_Number(0),                                       // number: local port
+      AT_Number(0),                                       // number: socket state
+      AT_Number(0),                                       // number: context Id
+  };
+
+  if (AT_Command(&qtelPtr->atCmd, "+QISTATE", 2, paramData, 7, respData) == AT_OK) {
+    if (respData[0].value.number == sock->linkNum
+        && respData[6].value.number == sock->socketManager->contextId
+        && respData[6].value.number != 0)
+    {
+      return 1;
+    }
   }
 
   return 0;
@@ -256,7 +295,7 @@ static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
 
   AT_Data_t paramData = AT_Number(sock->linkNum);
 
-  if (AT_Command(&qtelPtr->atCmd, "+CIPCLOSE", 1, &paramData, 0, 0) != AT_OK) {
+  if (AT_Command(&qtelPtr->atCmd, "+QICLOSE", 1, &paramData, 0, 0) != AT_OK) {
     return QTEL_ERROR;
   }
   return QTEL_OK;

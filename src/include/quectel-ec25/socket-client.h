@@ -17,10 +17,11 @@
 #define SIM_SOCK_UDP    0
 #define SIM_SOCK_TCPIP  1
 
-#define SIM_SOCK_EVENT_ON_OPENED        0x01
-#define SIM_SOCK_EVENT_ON_OPENING_ERROR 0x02
-#define SIM_SOCK_EVENT_ON_RECEIVED      0x04
-#define SIM_SOCK_EVENT_ON_CLOSED        0x08
+#define SIM_SOCK_EVENT_ON_OPENED              0x01
+#define SIM_SOCK_EVENT_ON_OPENING_ERROR       0x02
+#define SIM_SOCK_EVENT_ON_RECEIVED            0x04
+#define SIM_SOCK_EVENT_ON_CLOSED              0x08
+#define SIM_SOCK_EVENT_ON_RECV_DATA_AVAILABLE 0x10
 
 enum {
   SIM_SOCK_CLIENT_STATE_CLOSE,
@@ -33,10 +34,11 @@ enum {
 
 typedef struct {
   struct QTEL_Socket_HandlerTypeDef *socketManager;
-  uint8_t     state;
-  uint8_t     events;               // Events flag
-  int8_t      linkNum;
-  uint8_t     type;                 // SIM_SOCK_UDP or SIM_SOCK_TCPIP
+
+  uint8_t state;
+  uint8_t events;               // Events flag
+  int8_t  linkNum;
+  uint8_t type;                 // SIM_SOCK_UDP or SIM_SOCK_TCPIP
 
   // configuration
   struct {
@@ -69,13 +71,13 @@ typedef struct {
 
 
 // SOCKET
-QTEL_Status_t  SIM_SockClient_Init(QTEL_SocketClient_t*, const char *host, uint16_t port, void *buffer);
-QTEL_Status_t  SIM_SockClient_CheckEvents(QTEL_SocketClient_t*);
-QTEL_Status_t  SIM_SockClient_OnNetOpened(QTEL_SocketClient_t*);
-QTEL_Status_t  SIM_SockClient_Loop(QTEL_SocketClient_t*);
+QTEL_Status_t SIM_SockClient_Init(QTEL_SocketClient_t*, const char *host, uint16_t port, void *buffer);
+QTEL_Status_t SIM_SockClient_CheckEvents(QTEL_SocketClient_t*);
+QTEL_Status_t SIM_SockClient_OnNetOpened(QTEL_SocketClient_t*);
+QTEL_Status_t SIM_SockClient_Loop(QTEL_SocketClient_t*);
 void          SIM_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
-QTEL_Status_t  SIM_SockClient_Open(QTEL_SocketClient_t*, void*);
-QTEL_Status_t  SIM_SockClient_Close(QTEL_SocketClient_t*);
+QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t*, void*);
+QTEL_Status_t SIM_SockClient_Close(QTEL_SocketClient_t*);
 uint16_t      SIM_SockClient_SendData(QTEL_SocketClient_t*, uint8_t *data, uint16_t length);
 
 

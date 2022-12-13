@@ -43,8 +43,7 @@ QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef *qtelNTP, char *serve
     qtelNTP->port = 123;
   else
     qtelNTP->port = port;
-
-  QTEL_UNSET_STATUS(qtelNTP, QTEL_NTP_SERVER_WAS_SET);
+    
   QTEL_UNSET_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED);
   return QTEL_OK;
 }
@@ -55,37 +54,16 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
   QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
 
   if (qtelPtr->net.state != QTEL_NET_STATE_ONLINE) return QTEL_ERROR;
-  if (!QTEL_IS_STATUS(qtelNTP, QTEL_NTP_SERVER_WAS_SET)) {
-    QTEL_NTP_SetServer(&qtelPtr->ntp);
-  } else {
-    if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
-      if (qtelPtr->getTick() - qtelNTP->syncTick > qtelNTP->config.resyncInterval)
-        syncNTP(qtelNTP);
-    }
-    else {
-      if (qtelPtr->getTick() - qtelNTP->syncTick > qtelNTP->config.retryInterval)
-        syncNTP(qtelNTP);
-    }
+
+  if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
+    if (qtelPtr->getTick() - qtelNTP->syncTick > qtelNTP->config.resyncInterval)
+      syncNTP(qtelNTP);
+  }
+  else {
+    if (qtelPtr->getTick() - qtelNTP->syncTick > qtelNTP->config.retryInterval)
+      syncNTP(qtelNTP);
   }
 
-  return QTEL_OK;
-}
-
-
-QTEL_Status_t QTEL_NTP_SetServer(QTEL_NTP_HandlerTypeDef *qtelNTP)
-{
-  if (qtelNTP->server == 0 || strlen(qtelNTP->server) == 0) return QTEL_ERROR;
-
-  QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
-  AT_Data_t paramData[3] = {
-    AT_Number(1),               // cid
-    AT_String(qtelNTP->server),
-    AT_Number(qtelNTP->port),
-  };
-
-  if (AT_Command(&qtelPtr->atCmd, "+QNTP", 3, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
-  QTEL_SET_STATUS(qtelNTP, QTEL_NTP_SERVER_WAS_SET);
-  syncNTP(qtelNTP);
   return QTEL_OK;
 }
 
@@ -105,11 +83,18 @@ QTEL_Status_t QTEL_NTP_OnSynced(QTEL_NTP_HandlerTypeDef *qtelNTP)
 
 static uint8_t syncNTP(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
-  QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
+  if (qtelNTP->server == 0 || strlen(qtelNTP->server) == 0) return QTEL_ERROR;
 
-  qtelNTP->syncTick = qtelPtr->getTick();
+  QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
+  AT_Data_t paramData[3] = {
+    AT_Number(1),               // cid
+    AT_String(qtelNTP->server),
+    AT_Number(qtelNTP->port),
+  };
+
   QTEL_Debug("[NTP] syncronizing...");
-  if (AT_Command(&qtelPtr->atCmd, "+CNTP", 0, 0, 0, 0) != AT_OK) return QTEL_ERROR;
+  qtelNTP->syncTick = qtelPtr->getTick();
+  if (AT_Command(&qtelPtr->atCmd, "+QNTP", 3, paramData, 0, 0) != AT_OK) return QTEL_ERROR;\
 
   return QTEL_OK;
 }

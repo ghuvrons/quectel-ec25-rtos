@@ -37,8 +37,10 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *hsim)
   hsim->atCmd.rtos.eventWait    = hsim->rtos.eventWait;
   hsim->atCmd.rtos.eventClear   = hsim->rtos.eventClear;
 
-  AT_Config_t config;
-  config.timeout = 30000; // ms
+  AT_Config_t config = {
+      .commandTimeout = 30000,
+      .checkTimeout = 500,
+  };
 
   if (AT_Init(&hsim->atCmd, &config) != AT_OK) return QTEL_ERROR;
 
@@ -220,6 +222,12 @@ static void loop(QTEL_HandlerTypeDef* hsim)
     }
     break;
 
+  case QTEL_STATE_READY:
+    if (QTEL_IsTimeout(hsim, hsim->tick.changedState, 300)) {
+      QTEL_SetState(hsim, QTEL_STATE_CHECK_AT);
+    }
+    break;
+
   case QTEL_STATE_CHECK_AT:
     if (QTEL_IsTimeout(hsim, hsim->tick.changedState, 1000)) {
       QTEL_SetState(hsim, QTEL_STATE_CHECK_SIMCARD);
@@ -257,5 +265,5 @@ static void onReady(void *app, AT_Data_t *_)
   hsim->events  = 0;
   QTEL_Debug("Starting...");
 
-  QTEL_SetState(hsim, QTEL_STATE_CHECK_AT);
+  QTEL_SetState(hsim, QTEL_STATE_READY);
 }
