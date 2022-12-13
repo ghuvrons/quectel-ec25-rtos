@@ -20,52 +20,51 @@ static uint8_t syncNTP(QTEL_NTP_HandlerTypeDef*);
 static void onSynced(void *app, AT_Data_t*);
 
 
-QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *hsimntp, void *hsim)
+QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *qtelNTP, void *qtelPtr)
 {
-  if (((QTEL_HandlerTypeDef*)hsim)->key != QTEL_KEY)
+  if (((QTEL_HandlerTypeDef*)qtelPtr)->key != QTEL_KEY)
     return QTEL_ERROR;
 
-  hsimntp->hsim = hsim;
-  hsimntp->status = 0;
-  hsimntp->config.resyncInterval = 24*3600;
-  hsimntp->config.retryInterval = 5000;
+  qtelNTP->qtel = qtelPtr;
+  qtelNTP->status = 0;
+  qtelNTP->config.resyncInterval = 24*3600;
+  qtelNTP->config.retryInterval = 5000;
 
-  AT_On(&((QTEL_HandlerTypeDef*)hsim)->atCmd, "+QNTP", (QTEL_HandlerTypeDef*) hsim, 0, 0, onSynced);
+  AT_On(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "+QNTP", (QTEL_HandlerTypeDef*) qtelPtr, 0, 0, onSynced);
 
   return QTEL_OK;
 }
 
 
-QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef *hsimntp,
-                                 char *server, uint16_t port)
+QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef *qtelNTP, char *server, uint16_t port)
 {
-  hsimntp->server = server;
+  qtelNTP->server = server;
   if (port == 0)
-    hsimntp->port = 123;
+    qtelNTP->port = 123;
   else
-    hsimntp->port = port;
+    qtelNTP->port = port;
 
-  QTEL_UNSET_STATUS(hsimntp, QTEL_NTP_SERVER_WAS_SET);
-  QTEL_UNSET_STATUS(hsimntp, QTEL_NTP_WAS_SYNCED);
+  QTEL_UNSET_STATUS(qtelNTP, QTEL_NTP_SERVER_WAS_SET);
+  QTEL_UNSET_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED);
   return QTEL_OK;
 }
 
 
-QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *hsimntp)
+QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
-  QTEL_HandlerTypeDef *hsim = hsimntp->hsim;
+  QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
 
-  if (hsim->net.state != QTEL_NET_STATE_ONLINE) return QTEL_ERROR;
-  if (!QTEL_IS_STATUS(hsimntp, QTEL_NTP_SERVER_WAS_SET)) {
-    QTEL_NTP_SetServer(&hsim->ntp);
+  if (qtelPtr->net.state != QTEL_NET_STATE_ONLINE) return QTEL_ERROR;
+  if (!QTEL_IS_STATUS(qtelNTP, QTEL_NTP_SERVER_WAS_SET)) {
+    QTEL_NTP_SetServer(&qtelPtr->ntp);
   } else {
-    if (QTEL_IS_STATUS(hsimntp, QTEL_NTP_WAS_SYNCED)) {
-      if (hsim->getTick() - hsimntp->syncTick > hsimntp->config.resyncInterval)
-        syncNTP(hsimntp);
+    if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
+      if (qtelPtr->getTick() - qtelNTP->syncTick > qtelNTP->config.resyncInterval)
+        syncNTP(qtelNTP);
     }
     else {
-      if (hsim->getTick() - hsimntp->syncTick > hsimntp->config.retryInterval)
-        syncNTP(hsimntp);
+      if (qtelPtr->getTick() - qtelNTP->syncTick > qtelNTP->config.retryInterval)
+        syncNTP(qtelNTP);
     }
   }
 
@@ -73,57 +72,57 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *hsimntp)
 }
 
 
-QTEL_Status_t QTEL_NTP_SetServer(QTEL_NTP_HandlerTypeDef *hsimntp)
+QTEL_Status_t QTEL_NTP_SetServer(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
-  if (hsimntp->server == 0 || strlen(hsimntp->server) == 0) return QTEL_ERROR;
+  if (qtelNTP->server == 0 || strlen(qtelNTP->server) == 0) return QTEL_ERROR;
 
-  QTEL_HandlerTypeDef *hsim = hsimntp->hsim;
+  QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
   AT_Data_t paramData[3] = {
     AT_Number(1),               // cid
-    AT_String(hsimntp->server),
-    AT_Number(hsimntp->port),
+    AT_String(qtelNTP->server),
+    AT_Number(qtelNTP->port),
   };
 
-  if (AT_Command(&hsim->atCmd, "+QNTP", 3, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
-  QTEL_SET_STATUS(hsimntp, QTEL_NTP_SERVER_WAS_SET);
-  syncNTP(hsimntp);
+  if (AT_Command(&qtelPtr->atCmd, "+QNTP", 3, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
+  QTEL_SET_STATUS(qtelNTP, QTEL_NTP_SERVER_WAS_SET);
+  syncNTP(qtelNTP);
   return QTEL_OK;
 }
 
 
-QTEL_Status_t QTEL_NTP_OnSynced(QTEL_NTP_HandlerTypeDef *hsimntp)
+QTEL_Status_t QTEL_NTP_OnSynced(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
-  QTEL_HandlerTypeDef *hsim = hsimntp->hsim;
+  QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
   QTEL_Datetime_t dt;
 
-  if (hsimntp->onSynced != 0 && QTEL_GetTime(hsim, &dt) == QTEL_OK) {
-    hsimntp->onSynced(dt);
+  if (qtelNTP->onSynced != 0 && QTEL_GetTime(qtelPtr, &dt) == QTEL_OK) {
+    qtelNTP->onSynced(dt);
   }
 
   return QTEL_OK;
 }
 
 
-static uint8_t syncNTP(QTEL_NTP_HandlerTypeDef *hsimntp)
+static uint8_t syncNTP(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
-  QTEL_HandlerTypeDef *hsim = hsimntp->hsim;
+  QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
 
-  hsimntp->syncTick = hsim->getTick();
+  qtelNTP->syncTick = qtelPtr->getTick();
   QTEL_Debug("[NTP] syncronizing...");
-  if (AT_Command(&hsim->atCmd, "+CNTP", 0, 0, 0, 0) != AT_OK) return QTEL_ERROR;
+  if (AT_Command(&qtelPtr->atCmd, "+CNTP", 0, 0, 0, 0) != AT_OK) return QTEL_ERROR;
 
   return QTEL_OK;
 }
 
 static void onSynced(void *app, AT_Data_t *_)
 {
-  QTEL_HandlerTypeDef *hsim = (QTEL_HandlerTypeDef*)app;
+  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
-  hsim->status = 0;
-  hsim->events = 0;
+  qtelPtr->status = 0;
+  qtelPtr->events = 0;
   QTEL_Debug("[NTP] synced");
-  QTEL_SET_STATUS(&hsim->ntp, QTEL_NTP_WAS_SYNCED);
-  hsim->rtos.eventSet(QTEL_RTOS_EVT_NTP_SYNCED);
+  QTEL_SET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED);
+  qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_NTP_SYNCED);
 }
 
 #endif /* QTEL_EN_FEATURE_NTP */

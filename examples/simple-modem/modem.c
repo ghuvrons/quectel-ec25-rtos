@@ -85,19 +85,19 @@ bool MDM_Init(void)
   OS_Delay(10);
 
   // init driver methods
-  Mod_Modem.driver.delay = OS_Delay;
-  Mod_Modem.driver.getTick = OS_GetTick;
+  Mod_Modem.driver.delay    = OS_Delay;
+  Mod_Modem.driver.getTick  = OS_GetTick;
 
-  Mod_Modem.driver.serial.read = serialRead;
-  Mod_Modem.driver.serial.readline = serialReadline;
-  Mod_Modem.driver.serial.readinto = serialReadinto;
-  Mod_Modem.driver.serial.write = serialWrite;
+  Mod_Modem.driver.serial.read      = serialRead;
+  Mod_Modem.driver.serial.readline  = serialReadline;
+  Mod_Modem.driver.serial.readinto  = serialReadinto;
+  Mod_Modem.driver.serial.write     = serialWrite;
 
-  Mod_Modem.driver.rtos.mutexLock = mutexLock;
+  Mod_Modem.driver.rtos.mutexLock   = mutexLock;
   Mod_Modem.driver.rtos.mutexUnlock = mutexUnlock;
-  Mod_Modem.driver.rtos.eventSet = eventSet;
-  Mod_Modem.driver.rtos.eventWait = eventWait;
-  Mod_Modem.driver.rtos.eventClear = eventClear;
+  Mod_Modem.driver.rtos.eventSet    = eventSet;
+  Mod_Modem.driver.rtos.eventWait   = eventWait;
+  Mod_Modem.driver.rtos.eventClear  = eventClear;
 
   if (QTEL_Init(&Mod_Modem.driver) != QTEL_OK) return false;
 
@@ -109,7 +109,7 @@ bool MDM_Init(void)
   Mod_Modem.driver.ntp.onSynced = onNTPSynced;
   Mod_Modem.driver.ntp.config.resyncInterval = 24 * 3600 * 1000;
   Mod_Modem.driver.ntp.config.retryInterval = 10 * 1000;
-  QTEL_NTP_SetupServer(&Mod_Modem.driver.ntp, CONF_NTP_SERVER, CONF_NTP_REGION);
+  QTEL_NTP_SetupServer(&Mod_Modem.driver.ntp, CONF_NTP_SERVER, CONF_NTP_PORT);
 #endif
 
   return true;

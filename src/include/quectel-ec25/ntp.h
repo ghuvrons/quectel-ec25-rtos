@@ -18,12 +18,12 @@
 #define QTEL_NTP_WAS_SYNCED     0x02
 
 typedef struct {
-  void        *hsim;
-  uint8_t     status;
-  char        *server;
-  uint16_t    port;
-  uint32_t    syncTick;
-  void (*onSynced)(QTEL_Datetime_t);
+  void      *qtel;
+  uint8_t   status;
+  char      *server;
+  uint16_t  port;
+  uint32_t  syncTick;
+  void      (*onSynced)(QTEL_Datetime_t);
 
   struct {
     uint32_t retryInterval;
@@ -31,7 +31,7 @@ typedef struct {
   } config;
 } QTEL_NTP_HandlerTypeDef;
 
-QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef*, void *hsim);
+QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef*, void *qtelPtr);
 QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef*, char *server, uint16_t port);
 QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef*);
 
