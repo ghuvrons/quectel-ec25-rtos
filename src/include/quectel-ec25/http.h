@@ -14,6 +14,9 @@
 
 #include <quectel-ec25/types.h>
 
+#define QTEL_HTTP_STATUS_CONFIGURED 0x01
+
+
 enum {
   QTEL_HTTP_STATE_AVAILABLE,
   QTEL_HTTP_STATE_STARTING,
@@ -25,7 +28,7 @@ enum {
 };
 
 typedef struct {
-  char*         url;
+  const char*   url;
   uint8_t       method;
   const uint8_t *httpData;       // header + content
   uint16_t      httpDataLength;
@@ -41,14 +44,16 @@ typedef struct {
 
   // set by simcom
   uint8_t   status;
-  uint8_t   err;
+  uint16_t   err;
   uint16_t  code;
   uint16_t  contentLen;
 } QTEL_HTTP_Response_t;
 
 
 typedef struct {
-  void      *hsim;
+  void      *qtel;
+  uint8_t   contextId;
+  uint8_t   status;
   uint8_t   state;
   uint32_t  stateTick;
   uint8_t   events;

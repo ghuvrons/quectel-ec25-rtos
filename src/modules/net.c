@@ -21,6 +21,7 @@ QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef *qtelNet, void *qtelPtr)
     return QTEL_ERROR;
 
   qtelNet->qtel         = qtelPtr;
+  qtelNet->contextId    = 1;
   qtelNet->status       = 0;
   qtelNet->events       = 0;
   qtelNet->gprs_status  = 0;
@@ -57,30 +58,27 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
   qtelNet->stateTick = qtelPtr->getTick();
 
   switch (qtelNet->state) {
-  case QTEL_NET_STATE_SETUP_APN:
-    if (qtelNet->APN.APN != NULL) {
-      if (QTEL_NET_SetAPN(qtelNet) == QTEL_OK)
-      {
-        QTEL_Debug("APS was set");
-      }
-    }
-    QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_CHECK_GPRS);
-    break;
-
   case QTEL_NET_STATE_CHECK_GPRS:
-    if (!QTEL_IS_STATUS(qtelNet, QTEL_NET_STATUS_APN_WAS_SET)) {
-      QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_SETUP_APN);
-      break;
-    }
     QTEL_Debug("Checking GPRS...");
     if (QTEL_NET_GPRS_Check(qtelNet) == QTEL_OK) {
       QTEL_Debug("GPRS registered%s", (qtelNet->gprs_status == 5)? " (roaming)":"");
     }
-    else if (qtelNet->gprs_status == 0) {
-      QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_SETUP_APN);
-    }
     else if (qtelPtr->network_status == 2) {
       QTEL_Debug("GPRS Registering....");
+    }
+    break;
+
+  case QTEL_NET_STATE_SET_PDP_CONTEXT:
+    if (qtelNet->APN.APN != NULL) {
+      if (QTEL_NET_ConfigureContext(qtelNet, qtelNet->contextId) == QTEL_OK)
+      {
+        QTEL_Debug("APN was configured");
+      }
+      if (QTEL_NET_ActivateContext(qtelNet, qtelNet->contextId) == QTEL_OK)
+      {
+        QTEL_Debug("APS active");
+        QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ONLINE);
+      }
     }
     break;
 
@@ -134,7 +132,7 @@ QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef *qtelNet)
   if (qtelNet->gprs_status == 1 || qtelNet->gprs_status == 5) {
     status = QTEL_OK;
     if (qtelNet->state <= QTEL_NET_STATE_CHECK_GPRS) {
-      QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ONLINE);
+      QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_SET_PDP_CONTEXT);
     }
     if (qtelNet->gprs_status == 5)
       QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_GPRS_ROAMING);
@@ -149,17 +147,20 @@ QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef *qtelNet)
 }
 
 
-QTEL_Status_t QTEL_NET_SetAPN(QTEL_NET_HandlerTypeDef *qtelNet)
+QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
 {
+  if (QTEL_IS_STATUS(qtelNet, QTEL_NET_STATUS_CTX_CONFIGURED)) {
+    return QTEL_OK;
+  }
+
   QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
   QTEL_Status_t status          = QTEL_ERROR;
   char *APN                     = qtelNet->APN.APN;
   char *user                    = qtelNet->APN.user;
   char *pass                    = qtelNet->APN.pass;
-  uint8_t cid                   = 1;
 
   AT_Data_t paramData[6] = {
-    AT_Number(cid),
+    AT_Number(contextId),
     AT_String("IPV4V6"),
     AT_String(APN),
     AT_String(""),
@@ -184,12 +185,52 @@ QTEL_Status_t QTEL_NET_SetAPN(QTEL_NET_HandlerTypeDef *qtelNet)
 
   if (AT_Command(&qtelPtr->atCmd, "+QICSGP", 6, paramData, 0, 0) != AT_OK) goto endCmd;
 
-  QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_APN_WAS_SET);
+  QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_CTX_CONFIGURED);
   status = QTEL_OK;
 
 endCmd:
   return status;
 }
 
+
+QTEL_Status_t QTEL_NET_ActivateContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
+{
+  QTEL_Status_t status          = QTEL_ERROR;
+  QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
+  uint8_t commandSent = 0;
+  AT_Data_t respData[16][3];
+  AT_Data_t paramData[1] = {
+    AT_Number(contextId),
+  };
+
+checkContext:
+  memset(respData, 0, sizeof(respData));
+
+  // check
+  if (AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]) != AT_OK) return QTEL_ERROR;
+  for (uint8_t i = 0; i < 16; i++) {
+    if (respData[i][0].type == AT_NUMBER && respData[i][0].value.number == contextId) {
+      if (respData[i][1].value.number == 1)
+      {
+        status = QTEL_OK;
+        QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_CTX_ACTIVED);
+        goto endCmd;
+      }
+      break;
+    }
+  }
+
+  // command
+  if (commandSent == 1 ||
+      AT_Command(&qtelPtr->atCmd, "+QIACT", 1, paramData, 0, 0) != AT_OK)
+  {
+    goto endCmd;
+  }
+  commandSent = 1;
+  goto checkContext;
+
+endCmd:
+  return status;
+}
 
 #endif /* QTEL_EN_FEATURE_NET */

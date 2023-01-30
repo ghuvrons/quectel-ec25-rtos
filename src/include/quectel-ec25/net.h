@@ -15,7 +15,8 @@
 #include <quectel-ec25/types.h>
 
 
-#define QTEL_NET_STATUS_APN_WAS_SET      0x08
+#define QTEL_NET_STATUS_CTX_CONFIGURED   0x01
+#define QTEL_NET_STATUS_CTX_ACTIVED      0x02
 #define QTEL_NET_STATUS_GPRS_REGISTERED  0x10
 #define QTEL_NET_STATUS_GPRS_ROAMING     0x20
 #define QTEL_NET_STATUS_NTP_WAS_SET      0x40
@@ -23,13 +24,14 @@
 
 enum {
   QTEL_NET_STATE_NON_ACTIVE,
-  QTEL_NET_STATE_SETUP_APN,
   QTEL_NET_STATE_CHECK_GPRS,
+  QTEL_NET_STATE_SET_PDP_CONTEXT,
   QTEL_NET_STATE_ONLINE,
 };
 
 typedef struct {
   void      *qtel;         // QTEL_HandlerTypeDef
+  uint8_t   contextId;
   uint8_t   status;
   uint8_t   state;
   uint8_t   events;
@@ -57,7 +59,8 @@ void          QTEL_NET_SetState(QTEL_NET_HandlerTypeDef*, uint8_t newState);
 void          QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef*);
 void          QTEL_NET_Loop(QTEL_NET_HandlerTypeDef*);
 QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef*);
-QTEL_Status_t QTEL_NET_SetAPN(QTEL_NET_HandlerTypeDef*);
+QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
+QTEL_Status_t QTEL_NET_ActivateContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
 
 #endif /* QTEL_EN_FEATURE_NET */
 #endif /* QUECTEL_EC25_NET_H_ */
