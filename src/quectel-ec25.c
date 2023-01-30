@@ -217,7 +217,7 @@ static void loop(QTEL_HandlerTypeDef* hsim)
 {
   switch (hsim->state) {
   case QTEL_STATE_NON_ACTIVE:
-    if (QTEL_IsTimeout(hsim, hsim->tick.init, 30000)) {
+    if (QTEL_IsTimeout(hsim, hsim->tick.init, 3000)) {
       QTEL_SetState(hsim, QTEL_STATE_CHECK_AT);
     }
     break;

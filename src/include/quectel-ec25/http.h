@@ -64,10 +64,11 @@ typedef struct {
 QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef*, void *hsim);
 QTEL_Status_t QTEL_HTTP_Get(QTEL_HTTP_HandlerTypeDef*, char *url, QTEL_HTTP_Response_t*, uint32_t timeout);
 QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *hsimHttp, char *url,
-                                  uint8_t method,
-                                  const uint8_t *httpRequest,
-                                  uint16_t httpRequestLength,
-                                  QTEL_HTTP_Response_t *resp,
-                                  uint32_t timeout);
+                                    uint8_t method,
+                                    const uint8_t *httpRequest,
+                                    uint16_t httpRequestLength,
+                                    QTEL_HTTP_Response_t *resp,
+                                    uint32_t timeout);
+
 #endif /* QTEL_EN_FEATURE_HTTP */
 #endif /* QUECTEL_EC25_HTTP_H_ */

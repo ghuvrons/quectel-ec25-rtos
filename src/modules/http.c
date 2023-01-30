@@ -78,7 +78,7 @@ QTEL_Status_t QTEL_HTTP_Get(QTEL_HTTP_HandlerTypeDef *hsimHttp,
   req.url     = url;
   req.method  = 0;
   req.httpData = "Test";
-  req.httpDataLength = strlen(req.httpData);
+  req.httpDataLength = (uint16_t) strlen(req.httpData);
   QTEL_FILE_MemoryInfo(&hsim->file);
 
   return request(hsimHttp, &req, resp, timeout);
@@ -109,8 +109,8 @@ static QTEL_Status_t request(QTEL_HTTP_HandlerTypeDef *hsimHttp,
                             QTEL_HTTP_Request_t *req, QTEL_HTTP_Response_t *resp,
                             uint32_t timeout)
 {
-  QTEL_HandlerTypeDef  *hsim       = hsimHttp->hsim;
-  QTEL_Status_t        status      = QTEL_TIMEOUT;
+  QTEL_HandlerTypeDef *hsim       = hsimHttp->hsim;
+  QTEL_Status_t       status      = QTEL_TIMEOUT;
   uint32_t            notifEvent;
   AT_Data_t           paramData[3];
 
@@ -163,7 +163,9 @@ static QTEL_Status_t request(QTEL_HTTP_HandlerTypeDef *hsimHttp,
     }
 
     if (QTEL_FILE_CreateAndWriteFile(&hsim->file, "E:/request.http",
-                                    req->httpData, req->httpDataLength) != QTEL_OK) {
+                                     req->httpData,
+                                     req->httpDataLength) != QTEL_OK)
+    {
       return QTEL_ERROR;
     }
 
@@ -248,7 +250,6 @@ static struct AT_BufferReadTo onReadHead(void *app, AT_Data_t *data)
   QTEL_HandlerTypeDef *hsim = (QTEL_HandlerTypeDef*)app;
   struct AT_BufferReadTo returnBuf = {
       .buffer = 0,
-      .bufferSize = 0,
       .readLen = 0,
   };
 
@@ -259,7 +260,6 @@ static struct AT_BufferReadTo onReadHead(void *app, AT_Data_t *data)
 
   if (hsim->http.response != 0) {
     returnBuf.buffer = hsim->http.response->headBuffer;
-    returnBuf.bufferSize = hsim->http.response->headBufferSize;
   }
 
   return returnBuf;
@@ -270,7 +270,6 @@ static struct AT_BufferReadTo onReadData(void *app, AT_Data_t *resp)
   QTEL_HandlerTypeDef *hsim = (QTEL_HandlerTypeDef*)app;
   struct AT_BufferReadTo returnBuf = {
       .buffer = 0,
-      .bufferSize = 0,
       .readLen = 0,
   };
 
@@ -289,7 +288,6 @@ static struct AT_BufferReadTo onReadData(void *app, AT_Data_t *resp)
 
     if (hsim->http.response != 0) {
       returnBuf.buffer = hsim->http.response->contentBuffer;
-      returnBuf.bufferSize = hsim->http.response->contentBufferSize;
     }
   }
 

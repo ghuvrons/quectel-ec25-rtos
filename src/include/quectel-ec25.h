@@ -51,7 +51,7 @@ typedef struct QTEL_HandlerTypeDef {
     int (*read)(uint8_t *dst, uint16_t sz);
     int (*readline)(uint8_t *dst, uint16_t sz);
     int (*readinto)(void *buffer, uint16_t sz);
-    int (*write)(uint8_t *src, uint16_t sz);
+    int (*write)(const uint8_t *src, uint16_t sz);
   } serial;
 
   struct {

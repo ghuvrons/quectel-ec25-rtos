@@ -30,7 +30,7 @@ QTEL_Status_t QTEL_FILE_ListDir(QTEL_FILE_HandlerTypeDef*, const char *dir);
 QTEL_Status_t QTEL_FILE_MemoryInfo(QTEL_FILE_HandlerTypeDef*);
 
 QTEL_Status_t QTEL_FILE_IsFileExist(QTEL_FILE_HandlerTypeDef*, const char *filepath);
-QTEL_Status_t QTEL_FILE_CreateAndWriteFile(QTEL_FILE_HandlerTypeDef*, const char *filepath, uint8_t* data, uint16_t len);
+QTEL_Status_t QTEL_FILE_CreateAndWriteFile(QTEL_FILE_HandlerTypeDef*, const char *filepath, const uint8_t* data, uint16_t len);
 QTEL_Status_t QTEL_FILE_CopyFile(QTEL_FILE_HandlerTypeDef*, const char *filepath1, const char *filepath2);
 QTEL_Status_t QTEL_FILE_RenameFile(QTEL_FILE_HandlerTypeDef*, const char *filepath, const char *newName);
 QTEL_Status_t QTEL_FILE_RemoveFile(QTEL_FILE_HandlerTypeDef*, const char *filepath);
