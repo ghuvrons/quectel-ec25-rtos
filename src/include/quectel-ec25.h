@@ -94,6 +94,10 @@ typedef struct QTEL_HandlerTypeDef {
 
   char     cmdBuffer[QTEL_CMD_BUFFER_SIZE];
   uint16_t cmdBufferLen;
+
+  uint8_t  isRespConnectHandle;
+  uint8_t  respConnectBuffer[QTEL_RESP_CONNECT_BUFFER_SIZE];
+  uint16_t respConnectBufferLen;
 } QTEL_HandlerTypeDef;
 
 

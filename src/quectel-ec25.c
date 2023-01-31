@@ -16,7 +16,7 @@
 static void onNewState(QTEL_HandlerTypeDef*);
 static void loop(QTEL_HandlerTypeDef*);
 static void onReady(void *app, AT_Data_t*);
-
+static void onGetRespConnect(void *app, uint8_t *data, uint16_t len);
 
 QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *hsim)
 {
@@ -25,6 +25,7 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *hsim)
 
   hsim->atCmd.serial.readline = hsim->serial.readline;
   hsim->network_status = 0;
+  hsim->isRespConnectHandle = 0;
 
   hsim->atCmd.serial.read     = hsim->serial.read;
   hsim->atCmd.serial.readinto = hsim->serial.readinto;
@@ -45,6 +46,7 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *hsim)
   if (AT_Init(&hsim->atCmd, &config) != AT_OK) return QTEL_ERROR;
 
   AT_On(&hsim->atCmd, "RDY", hsim, 0, 0, onReady);
+  AT_ReadlineOn(&hsim->atCmd, "CONNECT", hsim, onGetRespConnect);
 
   hsim->key = QTEL_KEY;
 
@@ -266,4 +268,30 @@ static void onReady(void *app, AT_Data_t *_)
   QTEL_Debug("Starting...");
 
   QTEL_SetState(hsim, QTEL_STATE_READY);
+}
+
+
+static void onGetRespConnect(void *app, uint8_t *data, uint16_t len)
+{
+  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
+  uint32_t events;
+  uint8_t counter = 0;
+
+  if (len > QTEL_RESP_CONNECT_BUFFER_SIZE) len = QTEL_RESP_CONNECT_BUFFER_SIZE;
+  else qtelPtr->respConnectBuffer[len] = 0;
+
+  memcpy(qtelPtr->respConnectBuffer, data, len);
+
+  qtelPtr->rtos.eventClear(QTEL_RTOS_EVT_RESP_CONNECT_CLOSE);
+  qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_RESP_CONNECT);
+
+  while (qtelPtr->isRespConnectHandle) {
+    if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_RESP_CONNECT_CLOSE, &events, 1000) != AT_OK) {
+      if (counter++ > 60) {
+        // break if too long
+        qtelPtr->isRespConnectHandle = 0;
+        break;
+      }
+    }
+  }
 }
