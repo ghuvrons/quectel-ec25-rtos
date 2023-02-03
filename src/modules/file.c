@@ -72,15 +72,15 @@ QTEL_Status_t QTEL_FILE_CreateAndWriteFile(QTEL_FILE_HandlerTypeDef *qtelFile,
   return QTEL_OK;
 }
 
-QTEL_Status_t QTEL_FILE_RemoveFile(QTEL_FILE_HandlerTypeDef *qtelFile, const char *filepath)
+QTEL_Status_t QTEL_FILE_RemoveFile(QTEL_FILE_HandlerTypeDef *qtelFile, const char *filename)
 {
   QTEL_HandlerTypeDef *qtel = qtelFile->qtel;
 
   AT_Data_t paramData[1] = {
-      AT_Bytes(filepath, strlen(filepath)),
+    AT_String(filename),
   };
 
-  if (AT_Command(&qtel->atCmd, "+FSDEL", 1, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
+  if (AT_Command(&qtel->atCmd, "+QFDEL", 1, paramData, 0, 0) != AT_OK) return QTEL_ERROR;
 
   return QTEL_OK;
 }
@@ -174,7 +174,7 @@ endCmd:
 
 
 int QTEL_FILE_Write(QTEL_FILE_HandlerTypeDef *qtelFile, int fn,
-                              const uint8_t *data, uint32_t length)
+                    const uint8_t *data, uint32_t length)
 {
   QTEL_HandlerTypeDef *qtel = qtelFile->qtel;
 
@@ -200,8 +200,18 @@ int QTEL_FILE_Write(QTEL_FILE_HandlerTypeDef *qtelFile, int fn,
 }
 
 
-QTEL_Status_t QTEL_FILE_Seek(QTEL_FILE_HandlerTypeDef *qtelFile, int fn, uint32_t pos)
+QTEL_Status_t QTEL_FILE_Seek(QTEL_FILE_HandlerTypeDef *qtelFile, int fn, uint32_t offset)
 {
+  QTEL_HandlerTypeDef *qtel = qtelFile->qtel;
+
+  AT_Data_t paramData[2] = {
+      AT_Number(fn),
+      AT_Number(offset),
+  };
+
+  if (AT_Command(&qtel->atCmd, "+QFSEEK", 2, paramData, 0, 0) != AT_OK)
+    return QTEL_ERROR;
+
   return QTEL_OK;
 }
 
