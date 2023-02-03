@@ -129,13 +129,14 @@ void SIM_SockClient_SetBuffer(QTEL_SocketClient_t *sock, void *buffer)
 }
 
 
-QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t *sock, void *qtelPtr)
+QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t *sock,
+                                  QTEL_HandlerTypeDef *qtelPtr)
 {
-  if (((QTEL_HandlerTypeDef*)qtelPtr)->key != QTEL_KEY)
+  if (qtelPtr->key != QTEL_KEY)
     return QTEL_ERROR;
 
   sock->linkNum = -1;
-  sock->socketManager = &((QTEL_HandlerTypeDef*)qtelPtr)->socketManager;
+  sock->socketManager = &qtelPtr->socketManager;
 
   if (sock->config.autoReconnect) {
     Get_Available_LinkNum(sock->socketManager, &(sock->linkNum));
@@ -143,10 +144,12 @@ QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t *sock, void *qtelPtr)
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
 
-  if (QTEL_SockManager_NetOpen(sock->socketManager) != QTEL_OK) return QTEL_ERROR;
-  if (sock->socketManager->state != QTEL_SOCKMGR_STATE_NET_OPEN) {
+  if (qtelPtr->net.state == QTEL_NET_STATE_SET_PDP_CONTEXT) {
     sock->state = SIM_SOCK_CLIENT_STATE_WAIT_NETOPEN;
     return QTEL_OK;
+  }
+  else if (qtelPtr->net.state != QTEL_NET_STATE_ONLINE) {
+    return QTEL_ERROR;
   }
 
   sockOpen(sock);
@@ -208,7 +211,7 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
   }
 
   AT_Data_t paramData[6] = {
-      AT_Number(sock->socketManager->contextId),
+      AT_Number(qtelPtr->net.contextId),
       AT_Number(sock->linkNum),
       AT_String("TCP"),
       AT_String(sock->host),
@@ -276,7 +279,7 @@ static uint8_t isSockConnected(QTEL_SocketClient_t *sock)
 
   if (AT_Command(&qtelPtr->atCmd, "+QISTATE", 2, paramData, 7, respData) == AT_OK) {
     if (respData[0].value.number == sock->linkNum
-        && respData[6].value.number == sock->socketManager->contextId
+        && respData[6].value.number == qtelPtr->net.contextId
         && respData[6].value.number != 0)
     {
       return 1;

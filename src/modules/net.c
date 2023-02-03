@@ -9,7 +9,8 @@
 #if QTEL_EN_FEATURE_NET
 
 #include "../events.h"
-#include "../include/quectel-ec25.h"
+#include <quectel-ec25.h>
+#include <quectel-ec25/socket.h>
 #include <quectel-ec25/utils.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,9 +78,14 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
       if (QTEL_NET_ActivateContext(qtelNet, qtelNet->contextId) == QTEL_OK)
       {
         QTEL_Debug("APS active");
-        QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ONLINE);
       }
     }
+    break;
+
+  case QTEL_NET_STATE_ONLINE:
+#if QTEL_EN_FEATURE_SOCKET
+    QTEL_SockManager_OnNetOnline(&qtelPtr->socketManager);
+#endif
     break;
 
   default: break;
@@ -214,6 +220,7 @@ checkContext:
       {
         status = QTEL_OK;
         QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_CTX_ACTIVED);
+        QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ONLINE);
         goto endCmd;
       }
       break;
@@ -222,8 +229,15 @@ checkContext:
 
   // command
   if (commandSent == 1 ||
-      AT_Command(&qtelPtr->atCmd, "+QIACT", 1, paramData, 0, 0) != AT_OK)
+      AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIACT",
+                            1, paramData, 0, 0, 150000) != AT_OK)
   {
+    if (AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
+                              1, paramData, 0, 0, 40000) != AT_OK)
+    {
+      // [TODO]: Reset modem
+    }
+
     goto endCmd;
   }
   commandSent = 1;

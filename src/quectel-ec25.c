@@ -112,9 +112,6 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *hsim)
 #endif /* QTEL_EN_FEATURE_NET */
 
 #if QTEL_EN_FEATURE_SOCKET
-      if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_SOCKMGR_NEW_STATE)) {
-        QTEL_SockManager_OnNewState(&hsim->socketManager);
-      }
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT)) {
         QTEL_SockManager_CheckSocketsEvents(&hsim->socketManager);
       }

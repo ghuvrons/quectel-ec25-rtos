@@ -12,7 +12,9 @@
 #include <quectel-ec25/conf.h>
 #if QTEL_EN_FEATURE_SOCKET
 
+#include <quectel-ec25.h>
 #include <quectel-ec25/types.h>
+#include <quectel-ec25/socket.h>
 
 #define SIM_SOCK_UDP    0
 #define SIM_SOCK_TCPIP  1
@@ -32,7 +34,7 @@ enum {
 };
 
 
-typedef struct {
+typedef struct QTEL_SocketClient_t {
   struct QTEL_Socket_HandlerTypeDef *socketManager;
 
   uint8_t state;
@@ -76,7 +78,7 @@ QTEL_Status_t SIM_SockClient_CheckEvents(QTEL_SocketClient_t*);
 QTEL_Status_t SIM_SockClient_OnNetOpened(QTEL_SocketClient_t*);
 QTEL_Status_t SIM_SockClient_Loop(QTEL_SocketClient_t*);
 void          SIM_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
-QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t*, void*);
+QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t*, QTEL_HandlerTypeDef*);
 QTEL_Status_t SIM_SockClient_Close(QTEL_SocketClient_t*);
 uint16_t      SIM_SockClient_SendData(QTEL_SocketClient_t*, uint8_t *data, uint16_t length);
 
