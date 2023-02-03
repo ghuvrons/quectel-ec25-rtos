@@ -175,6 +175,7 @@ static void onNewState(QTEL_HandlerTypeDef *hsim)
 
   switch (hsim->state) {
   case QTEL_STATE_NON_ACTIVE:
+  case QTEL_STATE_READY:
   case QTEL_STATE_CHECK_AT:
     if (QTEL_CheckAT(hsim) == QTEL_OK) {
       QTEL_SetState(hsim, QTEL_STATE_CHECK_SIMCARD);
@@ -219,13 +220,13 @@ static void loop(QTEL_HandlerTypeDef* hsim)
 {
   switch (hsim->state) {
   case QTEL_STATE_NON_ACTIVE:
-    if (QTEL_IsTimeout(hsim, hsim->tick.init, 3000)) {
+    if (QTEL_IsTimeout(hsim, hsim->tick.init, 15000)) {
       QTEL_SetState(hsim, QTEL_STATE_CHECK_AT);
     }
     break;
 
   case QTEL_STATE_READY:
-    if (QTEL_IsTimeout(hsim, hsim->tick.changedState, 300)) {
+    if (QTEL_IsTimeout(hsim, hsim->tick.changedState, 30000)) {
       QTEL_SetState(hsim, QTEL_STATE_CHECK_AT);
     }
     break;
