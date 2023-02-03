@@ -15,12 +15,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define FILENAME_TMP "RAM:modem_tmp.http"
+
 static QTEL_Status_t httpConfigure(QTEL_HTTP_HandlerTypeDef*);
 
 static void onGetResponse(void *app, AT_Data_t *resp);
 static void onReadIntoFileDone(void *app, AT_Data_t *resp);
-static struct AT_BufferReadTo onReadHead(void *app, AT_Data_t *resp);
-static struct AT_BufferReadTo onReadData(void *app, AT_Data_t *resp);
 
 
 QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
@@ -40,26 +40,6 @@ QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
         qtelhttp->qtel, 3, httpActionResp, onGetResponse);
   AT_On(&((QTEL_HandlerTypeDef*)qtelhttp->qtel)->atCmd, "+QHTTPREADFILE",
         qtelhttp->qtel, 3, httpActionResp, onReadIntoFileDone);
-
-  AT_Data_t *readHeadResp = malloc(sizeof(AT_Data_t)*2);
-  uint8_t *readHeadRespStr = malloc(8);
-  AT_DataSetBuffer(readHeadResp, readHeadRespStr, 8);
-  AT_DataSetNumber(readHeadResp+1, 0);
-  AT_ReadIntoBufferOn(&((QTEL_HandlerTypeDef*)qtelhttp->qtel)->atCmd, "+HTTPHEAD",
-                      qtelhttp->qtel, 2, readHeadResp, onReadHead);
-
-  AT_Data_t *readDataResp = malloc(sizeof(AT_Data_t)*2);
-  uint8_t *readDataRespStr = malloc(8);
-  AT_DataSetBuffer(readDataResp, readDataRespStr, 8);
-  AT_DataSetNumber(readDataResp+1, 0);
-  AT_ReadIntoBufferOn(&((QTEL_HandlerTypeDef*)qtelhttp->qtel)->atCmd, "+HTTPREAD",
-                      qtelhttp->qtel, 2, readDataResp, onReadData);
-
-//  AT_On(&qtelhttp->qtel->atCmd, "+HTTP_PEER_CLOSED",
-//        qtelhttp->qtel, 2, socketCloseResp, onSocketClosed);
-//
-//  AT_On(&qtelhttp->qtel->atCmd, "+HTTP_NONET_EVENT",
-//        qtelhttp->qtel, 2, socketCloseResp, onSocketClosed);
 
   return QTEL_OK;
 }
@@ -152,7 +132,7 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
     switch (qtelhttp->state) {
     case QTEL_HTTP_STATE_GET_RESP:
       // put response data to temporary file
-      AT_DataSetString(&paramData[0], (req->saveto == 0)? "RAM:tmp.http": req->saveto);
+      AT_DataSetString(&paramData[0], (req->saveto == 0)? FILENAME_TMP: req->saveto);
       AT_DataSetNumber(&paramData[1], 100); // timeout
       if (AT_Command(&qtelPtr->atCmd, "+QHTTPREADFILE", 2, paramData, 0, 0) != AT_OK)
         goto endCmd;
@@ -167,14 +147,15 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
       {
         goto endCmd;
       }
-      QTEL_FILE_Open(&qtelPtr->file, "RAM:tmp.http", &fn);
+      QTEL_FILE_Open(&qtelPtr->file, FILENAME_TMP, &fn);
       qtelhttp->state = QTEL_HTTP_STATE_READING_CONTENT;
       while (contentRead < resp->contentLen) {
         tmpReadLen = QTEL_FILE_Read(&qtelPtr->file, fn, resp->contentBuffer, resp->contentBufferSize);
         if (tmpReadLen == -1) {
           goto endCmd;
         }
-        resp->onGetData(resp->contentBuffer, (uint16_t) tmpReadLen);
+        if (resp->onGetData)
+          resp->onGetData(resp->contentBuffer, (uint16_t) tmpReadLen);
         contentRead += tmpReadLen;
       }
       goto endCmd;
@@ -185,6 +166,7 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
 endCmd:
   if (fn != -1) {
     QTEL_FILE_Close(&qtelPtr->file, fn);
+    QTEL_FILE_RemoveFile(&qtelPtr->file, FILENAME_TMP);
   }
   qtelhttp->state = QTEL_HTTP_STATE_AVAILABLE;
   return status;
@@ -196,7 +178,6 @@ QTEL_Status_t QTEL_HTTP_Get(QTEL_HTTP_HandlerTypeDef *qtelhttp,
                             QTEL_HTTP_Response_t *resp,
                             uint32_t timeout)
 {
-  QTEL_HandlerTypeDef  *qtelPtr = qtelhttp->qtel;
   QTEL_HTTP_Request_t  req;
 
   memset(&req, 0, sizeof(QTEL_HTTP_Request_t));
@@ -214,7 +195,6 @@ QTEL_Status_t QTEL_HTTP_DownloadAndSave(QTEL_HTTP_HandlerTypeDef *qtelhttp,
                                         QTEL_HTTP_Response_t *resp,
                                         uint32_t timeout)
 {
-  QTEL_HandlerTypeDef  *qtelPtr = qtelhttp->qtel;
   QTEL_HTTP_Request_t  req;
 
   memset(&req, 0, sizeof(QTEL_HTTP_Request_t));
@@ -233,6 +213,10 @@ static QTEL_Status_t httpConfigure(QTEL_HTTP_HandlerTypeDef *qtelhttp)
   AT_Status_t         status      = QTEL_ERROR;
   AT_Data_t           paramData[3];
 
+  if (QTEL_IS_STATUS(qtelhttp, QTEL_HTTP_STATUS_CONFIGURED)) {
+    return QTEL_OK;
+  }
+
   AT_DataSetString(&paramData[0], "contextid");
   AT_DataSetNumber(&paramData[1], qtelPtr->net.contextId);
   status = AT_Command(&qtelPtr->atCmd, "+QHTTPCFG", 2, paramData, 0, 0);
@@ -242,6 +226,10 @@ static QTEL_Status_t httpConfigure(QTEL_HTTP_HandlerTypeDef *qtelhttp)
   AT_DataSetNumber(&paramData[1], 0);
   status = AT_Command(&qtelPtr->atCmd, "+QHTTPCFG", 2, paramData, 0, 0);
   if (status != AT_OK) return (QTEL_Status_t) status;
+
+  QTEL_FILE_RemoveFile(&qtelPtr->file, FILENAME_TMP);
+
+  QTEL_SET_STATUS(qtelhttp, QTEL_HTTP_STATUS_CONFIGURED);
 
   return QTEL_OK;
 }
@@ -279,56 +267,6 @@ static void onReadIntoFileDone(void *app, AT_Data_t *resp)
   hsim->http.state = QTEL_HTTP_STATE_TMP_FILE_READY;
   hsim->rtos.eventSet(QTEL_RTOS_EVT_HTTP_NEW_STATE);
 }
-
-
-static struct AT_BufferReadTo onReadHead(void *app, AT_Data_t *data)
-{
-  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
-
-  struct AT_BufferReadTo returnBuf = {
-      .buffer = 0,
-      .readLen = 0,
-  };
-
-  data++;
-  returnBuf.readLen = data->value.number;
-
-  if (qtelPtr->http.response != 0) {
-    returnBuf.buffer = qtelPtr->http.response->headerBuffer;
-  }
-
-  return returnBuf;
-}
-
-static struct AT_BufferReadTo onReadData(void *app, AT_Data_t *resp)
-{
-  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
-  struct AT_BufferReadTo returnBuf = {
-      .buffer = 0,
-      .readLen = 0,
-  };
-
-  const char *flag = resp->value.string;
-
-  if (resp->type == AT_NUMBER && resp->value.number == 0)
-  {
-    qtelPtr->http.state = QTEL_HTTP_STATE_GET_BUF_CONTENT;
-    qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_HTTP_NEW_STATE);
-  }
-  if (strncmp(flag, "DATA", 4) == 0) {
-    resp++;
-    returnBuf.readLen = resp->value.number;
-    qtelPtr->http.contentReadLen += resp->value.number;
-    qtelPtr->http.contentBufLen = resp->value.number;
-
-    if (qtelPtr->http.response != 0) {
-      returnBuf.buffer = qtelPtr->http.response->contentBuffer;
-    }
-  }
-
-  return returnBuf;
-}
-
 
 
 #endif /* QTEL_EN_FEATURE_HTTP */
