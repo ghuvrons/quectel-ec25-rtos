@@ -63,7 +63,7 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
 {
   QTEL_HandlerTypeDef *qtelPtr = sockMgr->qtel;
 
-  if (qtelPtr->net.state == QTEL_NET_STATE_SET_PDP_CONTEXT) {
+  if (qtelPtr->net.state == QTEL_NET_STATE_ONLINE) {
     for (uint8_t i = 0; i < QTEL_NUM_OF_SOCKET; i++)
     {
       if (sockMgr->sockets[i] != 0) {

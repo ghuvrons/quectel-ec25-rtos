@@ -31,6 +31,8 @@ enum {
 
 typedef struct {
   void      *qtel;         // QTEL_HandlerTypeDef
+  uint16_t  isCtxConfigured;
+  uint16_t  isCtxActived;
   uint8_t   contextId;
   uint8_t   status;
   uint8_t   state;

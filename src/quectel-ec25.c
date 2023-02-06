@@ -99,10 +99,6 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 #if QTEL_EN_FEATURE_NET
         QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_CHECK_GPRS);
 #endif /* QTEL_EN_FEATURE_NET */
-
-#if QTEL_EN_FEATURE_GPS
-        QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
-#endif /* QTEL_EN_FEATURE_GPS */
       }
 
 #if QTEL_EN_FEATURE_NET
@@ -146,6 +142,10 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 #if QTEL_EN_FEATURE_NTP
     QTEL_NTP_Loop(&qtelPtr->ntp);
 #endif /* QTEL_EN_FEATURE_NTP */
+
+#if QTEL_EN_FEATURE_GPS
+    QTEL_GPS_Loop(&qtelPtr->gps);
+#endif /* QTEL_EN_FEATURE_GPS */
 
   next:
     timeout = 1000 - (qtelPtr->getTick() - lastTO);

@@ -63,6 +63,10 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
     QTEL_Debug("Checking GPRS...");
     if (QTEL_NET_GPRS_Check(qtelNet) == QTEL_OK) {
       QTEL_Debug("GPRS registered%s", (qtelNet->gprs_status == 5)? " (roaming)":"");
+
+#if QTEL_EN_FEATURE_GPS
+      QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
+#endif /* QTEL_EN_FEATURE_GPS */
     }
     else if (qtelPtr->network_status == 2) {
       QTEL_Debug("GPRS Registering....");
@@ -155,7 +159,8 @@ QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef *qtelNet)
 
 QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
 {
-  if (QTEL_IS_STATUS(qtelNet, QTEL_NET_STATUS_CTX_CONFIGURED)) {
+  if (contextId == 0 || contextId > 16) return QTEL_ERROR;
+  if (QTEL_BITS_IS_ALL(qtelNet->isCtxConfigured, (1 << (contextId-1)))) {
     return QTEL_OK;
   }
 
@@ -191,7 +196,7 @@ QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_
 
   if (AT_Command(&qtelPtr->atCmd, "+QICSGP", 6, paramData, 0, 0) != AT_OK) goto endCmd;
 
-  QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_CTX_CONFIGURED);
+  QTEL_BITS_SET(qtelNet->isCtxConfigured, (1 << (contextId-1)));
   status = QTEL_OK;
 
 endCmd:
@@ -201,6 +206,8 @@ endCmd:
 
 QTEL_Status_t QTEL_NET_ActivateContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
 {
+  if (contextId > 16) return QTEL_ERROR;
+
   QTEL_Status_t status          = QTEL_ERROR;
   QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
   uint8_t commandSent = 0;
@@ -215,12 +222,15 @@ checkContext:
   // check
   if (AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]) != AT_OK) return QTEL_ERROR;
   for (uint8_t i = 0; i < 16; i++) {
-    if (respData[i][0].type == AT_NUMBER && respData[i][0].value.number == contextId) {
+    if (respData[i][0].type == AT_NUMBER
+        && respData[i][0].value.number == contextId) {
       if (respData[i][1].value.number == 1)
       {
         status = QTEL_OK;
-        QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_CTX_ACTIVED);
-        QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ONLINE);
+        QTEL_BITS_SET(qtelNet->isCtxActived, (1 << (contextId-1)));
+        if (qtelNet->contextId == contextId) {
+          QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ONLINE);
+        }
         goto endCmd;
       }
       break;

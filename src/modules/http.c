@@ -6,12 +6,12 @@
  */
 
 #include <quectel-ec25/http.h>
-#if QTEL_EN_FEATURE_HTTP
 
-#include "../include/quectel-ec25.h"
+#if QTEL_EN_FEATURE_HTTP
+#include "../events.h"
+#include <quectel-ec25.h>
 #include <quectel-ec25/file.h>
 #include <quectel-ec25/utils.h>
-#include "../events.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -29,8 +29,9 @@ QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
     return QTEL_ERROR;
 
   qtelhttp->qtel = qtelPtr;
-  qtelhttp->state = QTEL_HTTP_STATE_AVAILABLE;
+  qtelhttp->state = QTEL_HTTP_STATE_NON_ACTIVE;
   qtelhttp->stateTick = 0;
+  qtelhttp->contextId = 2;
 
   AT_Data_t *httpActionResp = malloc(sizeof(AT_Data_t)*3);
   AT_DataSetNumber(httpActionResp, 0);
@@ -64,10 +65,30 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
     return QTEL_ERROR;
   }
 
-  while (qtelhttp->state != QTEL_HTTP_STATE_AVAILABLE) qtelPtr->delay(1);
-  qtelhttp->state = QTEL_HTTP_STATE_STARTING;
+  if (qtelhttp->state == QTEL_HTTP_STATE_NON_ACTIVE) {
+    qtelhttp->state = QTEL_HTTP_STATE_ACTIVATING;
+    if (QTEL_NET_ConfigureContext(&qtelPtr->net, qtelhttp->contextId) != QTEL_OK)
+    {
+      qtelhttp->state = QTEL_HTTP_STATE_NON_ACTIVE;
+      return QTEL_ERROR;
+    }
+    if (QTEL_NET_ActivateContext(&qtelPtr->net, qtelhttp->contextId) != QTEL_OK)
+    {
+      qtelhttp->state = QTEL_HTTP_STATE_NON_ACTIVE;
+      return QTEL_ERROR;
+    }
+    qtelhttp->state = QTEL_HTTP_STATE_AVAILABLE;
+  }
 
-  if (qtelPtr->net.state < QTEL_NET_STATE_ONLINE) goto endCmd;
+  uint32_t httpTick = qtelPtr->getTick();
+  while (qtelhttp->state != QTEL_HTTP_STATE_AVAILABLE) {
+    if (QTEL_IsTimeout(qtelPtr, httpTick, timeout)) {
+      return QTEL_TIMEOUT;
+    }
+    qtelPtr->delay(1);
+  }
+
+  qtelhttp->state = QTEL_HTTP_STATE_STARTING;
 
   resp->status       = 0;
   resp->err          = 0;
@@ -218,7 +239,7 @@ static QTEL_Status_t httpConfigure(QTEL_HTTP_HandlerTypeDef *qtelhttp)
   }
 
   AT_DataSetString(&paramData[0], "contextid");
-  AT_DataSetNumber(&paramData[1], qtelPtr->net.contextId);
+  AT_DataSetNumber(&paramData[1], qtelhttp->contextId);
   status = AT_Command(&qtelPtr->atCmd, "+QHTTPCFG", 2, paramData, 0, 0);
   if (status != AT_OK) return (QTEL_Status_t) status;
 
