@@ -301,6 +301,9 @@ static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
   if (AT_Command(&qtelPtr->atCmd, "+QICLOSE", 1, &paramData, 0, 0) != AT_OK) {
     return QTEL_ERROR;
   }
+  sock->state = SIM_SOCK_CLIENT_STATE_CLOSE;
+  QTEL_BITS_SET(sock->events, SIM_SOCK_EVENT_ON_CLOSED);
+  qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   return QTEL_OK;
 }
 

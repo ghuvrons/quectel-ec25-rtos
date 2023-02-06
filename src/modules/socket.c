@@ -17,8 +17,6 @@
 
 
 static void onSocketOpened(void *app, AT_Data_t*);
-static void onSocketClosedByCmd(void *app, AT_Data_t*);
-static void onSocketClosed(void *app, AT_Data_t*);
 static void onSocketEvent(void *app, AT_Data_t*);
 
 QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef *sockMgr, void *qtelPtr)
@@ -93,39 +91,11 @@ static void onSocketOpened(void *app, AT_Data_t *resp)
       QTEL_BITS_SET(sock->events, SIM_SOCK_EVENT_ON_OPENED);
       qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
     }
-  }
-}
-
-
-static void onSocketClosedByCmd(void *app, AT_Data_t *resp)
-{
-  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
-  uint8_t linkNum = resp->value.number;
-
-  resp++;
-  uint8_t err = resp->value.number;
-
-  QTEL_SocketClient_t *sock = qtelPtr->socketManager.sockets[linkNum];
-  if (sock != 0) {
-    if (err == 0) {
-      QTEL_BITS_SET(sock->events, SIM_SOCK_EVENT_ON_CLOSED);
+    else {
+      sock->state = SIM_SOCK_CLIENT_STATE_CLOSE;
+      QTEL_BITS_SET(sock->events, SIM_SOCK_EVENT_ON_OPENING_ERROR);
       qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
     }
-  }
-}
-
-
-static void onSocketClosed(void *app, AT_Data_t *resp)
-{
-  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
-  uint8_t linkNum = resp->value.number;
-
-  resp++;
-
-  QTEL_SocketClient_t *sock = qtelPtr->socketManager.sockets[linkNum];
-  if (sock != 0) {
-    QTEL_BITS_SET(sock->events, SIM_SOCK_EVENT_ON_CLOSED);
-    qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   }
 }
 
@@ -141,6 +111,11 @@ static void onSocketEvent(void *app, AT_Data_t *resp)
 
   if (strncmp(evt, "recv", 4) == 0) {
     QTEL_BITS_SET(sock->events, SIM_SOCK_EVENT_ON_RECV_DATA_AVAILABLE);
+    qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
+  }
+  else if (strncmp(evt, "closed", 6) == 0) {
+    sock->state = SIM_SOCK_CLIENT_STATE_CLOSE;
+    QTEL_BITS_SET(sock->events, SIM_SOCK_EVENT_ON_CLOSED);
     qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   }
 }
