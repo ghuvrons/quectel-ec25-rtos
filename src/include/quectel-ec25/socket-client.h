@@ -16,21 +16,21 @@
 #include <quectel-ec25/types.h>
 #include <quectel-ec25/socket.h>
 
-#define SIM_SOCK_UDP    0
-#define SIM_SOCK_TCPIP  1
+#define QTEL_SOCK_UDP    0
+#define QTEL_SOCK_TCPIP  1
 
-#define SIM_SOCK_EVENT_ON_OPENED              0x01
-#define SIM_SOCK_EVENT_ON_OPENING_ERROR       0x02
-#define SIM_SOCK_EVENT_ON_RECEIVED            0x04
-#define SIM_SOCK_EVENT_ON_CLOSED              0x08
-#define SIM_SOCK_EVENT_ON_RECV_DATA_AVAILABLE 0x10
+#define QTEL_SOCK_EVENT_ON_OPENED              0x01
+#define QTEL_SOCK_EVENT_ON_OPENING_ERROR       0x02
+#define QTEL_SOCK_EVENT_ON_RECEIVED            0x04
+#define QTEL_SOCK_EVENT_ON_CLOSED              0x08
+#define QTEL_SOCK_EVENT_ON_RECV_DATA_AVAILABLE 0x10
 
 enum {
-  SIM_SOCK_CLIENT_STATE_CLOSE,
-  SIM_SOCK_CLIENT_STATE_WAIT_NETOPEN,
-  SIM_SOCK_CLIENT_STATE_OPENING,
-  SIM_SOCK_CLIENT_STATE_OPEN_PENDING,
-  SIM_SOCK_CLIENT_STATE_OPEN,
+  QTEL_SOCK_CLIENT_STATE_CLOSE,
+  QTEL_SOCK_CLIENT_STATE_WAIT_NETOPEN,
+  QTEL_SOCK_CLIENT_STATE_OPENING,
+  QTEL_SOCK_CLIENT_STATE_OPEN_PENDING,
+  QTEL_SOCK_CLIENT_STATE_OPEN,
 };
 
 
@@ -73,14 +73,14 @@ typedef struct QTEL_SocketClient_t {
 
 
 // SOCKET
-QTEL_Status_t SIM_SockClient_Init(QTEL_SocketClient_t*, const char *host, uint16_t port, void *buffer);
-QTEL_Status_t SIM_SockClient_CheckEvents(QTEL_SocketClient_t*);
-QTEL_Status_t SIM_SockClient_OnNetOpened(QTEL_SocketClient_t*);
-QTEL_Status_t SIM_SockClient_Loop(QTEL_SocketClient_t*);
-void          SIM_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
-QTEL_Status_t SIM_SockClient_Open(QTEL_SocketClient_t*, QTEL_HandlerTypeDef*);
-QTEL_Status_t SIM_SockClient_Close(QTEL_SocketClient_t*);
-uint16_t      SIM_SockClient_SendData(QTEL_SocketClient_t*, uint8_t *data, uint16_t length);
+QTEL_Status_t QTEL_SockClient_Init(QTEL_SocketClient_t*, const char *host, uint16_t port, void *buffer);
+QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t*);
+QTEL_Status_t QTEL_SockClient_OnNetOpened(QTEL_SocketClient_t*);
+QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t*);
+void          QTEL_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
+QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t*, QTEL_HandlerTypeDef*);
+QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t*);
+uint16_t      QTEL_SockClient_SendData(QTEL_SocketClient_t*, uint8_t *data, uint16_t length);
 
 
 #endif /* QTEL_EN_FEATURE_SOCKET */
