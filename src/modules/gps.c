@@ -116,8 +116,6 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
     memcpy(&qtelGps->config, &defaultConfig, sizeof(QTEL_GPS_Config_t));
   }
 
-  lwgps_init(&qtelGps->lwgps);
-
   AT_ReadlineOn(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "$", (QTEL_HandlerTypeDef*) qtelPtr, onGetNMEA);
 
   return QTEL_OK;
@@ -353,8 +351,6 @@ static void onGetNMEA(void *app, uint8_t *data, uint16_t len)
 {
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
   *(data+len) = 0;
-
-  lwgps_process(&qtelPtr->gps.lwgps, data, len);
 }
 
 #endif /* QTEL_EN_FEATURE_GPS */

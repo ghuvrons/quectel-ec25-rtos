@@ -12,7 +12,6 @@
 #if QTEL_EN_FEATURE_GPS
 
 #include <quectel-ec25/types.h>
-#include <lwgps/lwgps.h>
 
 #ifndef QTEL_GPS_TMP_BUF_SIZE
 #define QTEL_GPS_TMP_BUF_SIZE 128
@@ -111,7 +110,14 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   uint32_t            getLocTick;
   uint8_t             isConfigured;
   QTEL_GPS_Config_t   config;
-  lwgps_t             lwgps;
+
+  struct {
+    float longitude;
+    float latitude;
+    float altitude;
+    float HDOP;
+    float fix;
+  } data;
 } QTEL_GPS_HandlerTypeDef;
 
 QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef*, void *qtelPtr);
