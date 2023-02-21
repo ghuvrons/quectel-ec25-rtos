@@ -132,7 +132,7 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
 #endif /* QTEL_EN_FEATURE_GPS_ONEXTRA */
 
-    if (startGPS(qtelGps, QTEL_GPS_STANDALONE) != QTEL_OK) {
+    if (startGPS(qtelGps, QTEL_GPS_MS_BASED) != QTEL_OK) {
       QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
       break;
     }
