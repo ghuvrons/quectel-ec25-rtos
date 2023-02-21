@@ -38,4 +38,9 @@
 #define QTEL_GPS_UNSET_STATUS(qtelPtr, stat)  QTEL_BITS_UNSET((qtelPtr)->gps.status, stat)
 #endif
 
+
+QTEL_Status_t QTEL_Datetime_IsValid(QTEL_Datetime_t*);
+void QTEL_Datetime_AddDays(QTEL_Datetime_t*, int days);
+int8_t QTEL_Datetime_CompareDate(QTEL_Datetime_t*, QTEL_Datetime_t*);
+
 #endif /* QUECTEL_EC25_UTILS_H_ */

@@ -10,6 +10,7 @@
 
 #include "../events.h"
 #include <quectel-ec25.h>
+#include <quectel-ec25/gps.h>
 #include <quectel-ec25/socket.h>
 #include <quectel-ec25/utils.h>
 #include <stdlib.h>
@@ -65,7 +66,9 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
       QTEL_Debug("GPRS registered%s", (qtelNet->gprs_status == 5)? " (roaming)":"");
 
 #if QTEL_EN_FEATURE_GPS
-      QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
+      if (qtelPtr->gps.state == QTEL_GPS_STATE_NON_ACTIVE) {
+        QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
+      }
 #endif /* QTEL_EN_FEATURE_GPS */
     }
     else if (qtelPtr->network_status == 2) {

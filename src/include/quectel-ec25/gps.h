@@ -61,8 +61,9 @@
 enum {
   QTEL_GPS_STATE_NON_ACTIVE,
   QTEL_GPS_STATE_SETUP,
-  QTEL_GPS_STATE_WAIT_ONLINE,
-  QTEL_GPS_STATE_ACTIVE,
+  QTEL_GPS_STATE_WAITING_NTP,
+  QTEL_GPS_STATE_FIXING,
+  QTEL_GPS_STATE_FIXED,
 };
 
 typedef enum {
@@ -80,6 +81,12 @@ typedef enum {
   QTEL_GPS_SUPL_V1 = 1,
   QTEL_GPS_SUPL_V2,
 } QTEL_GPS_SUPL_Version_t;
+
+typedef enum {
+  QTEL_GPS_STANDALONE = 1,
+  QTEL_GPS_MS_BASED,
+  QTEL_GPS_MS_ASSISTED,
+} QTEL_GPS_Mode_t;
 
 
 typedef struct {
@@ -103,8 +110,10 @@ typedef struct {
 #endif
 } QTEL_GPS_Config_t;
 
+
 typedef struct QTEL_GPS_HandlerTypeDef {
   void                *qtel;
+  QTEL_GPS_Mode_t     mode;
   uint8_t             state;
   uint32_t            stateTick;
   uint32_t            getLocTick;

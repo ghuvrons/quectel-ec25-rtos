@@ -10,13 +10,13 @@
 #if QTEL_EN_FEATURE_GPS
 #include "../events.h"
 #include <quectel-ec25.h>
+#include <quectel-ec25/core.h>
 #include <quectel-ec25/utils.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define QTEL_GPS_CONFIG_KEY   0xAE
 #define QTEL_ONEXTRA_TMP_FILE "RAM:xtra2.bin"
-#define QTEL_SUPL_CA_FILE     "RAM:modem_supl_ca.cert"
 
 static const QTEL_GPS_Config_t defaultConfig = {
   .accuracy           = 50,
@@ -55,7 +55,7 @@ static const QTEL_GPS_Config_t defaultConfig = {
                         QTEL_AGLONASS_PTC_USER_PLANE_LPP,
 
   .supl         =  {
-      .version  = QTEL_GPS_SUPL_V1,
+      .version  = QTEL_GPS_SUPL_V2,
       .server   = "supl.google.com:7276",
   },
   .oneXTRA = {
@@ -63,44 +63,16 @@ static const QTEL_GPS_Config_t defaultConfig = {
   },
 };
 
-static const char *SUPL_CA =
-"-----BEGIN CERTIFICATE-----"
-"MIIFVTCCBD2gAwIBAgIQFi0c9HaFGosKq1bjw1JgzDANBgkqhkiG9w0BAQsFADBG"
-"MQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExM"
-"QzETMBEGA1UEAxMKR1RTIENBIDFDMzAeFw0yMzAxMDkwODE5MTRaFw0yMzA0MDMw"
-"ODE5MTNaMBoxGDAWBgNVBAMTD3N1cGwuZ29vZ2xlLmNvbTCCASIwDQYJKoZIhvcN"
-"AQEBBQADggEPADCCAQoCggEBALAJK6RJRgmKdYRhBkYyaIuEEbqgdRaIkv3Lapfh"
-"K5nddkoFuyq4Ite5z6VnInYSXJs8um5qcOriklb6xkoEIagnfRVCgi80VSgoL7iB"
-"0xwA69B+AyesBZNo9WFTZL5Ta9rtKfHQndKNpMTM1EmX5Yg/MP9DCcyErrVHop6X"
-"PU1BIm/3pnxwFxtnm5ZHNcVO3Ytei+s5dab/S/uwxwxjMArfeGchLFYDNDcPAsdt"
-"hZJ8drjFWQFcc6uDISaSZvPdl0HuF70cIZAyLlTxF1yKBOOrzmEL1ivHzplUKyz3"
-"Pas1fv5Ei3wZqpjAE2MVkFen11JaU3iMViFxhfEaMTVz9ZkCAwEAAaOCAmkwggJl"
-"MA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8E"
-"AjAAMB0GA1UdDgQWBBTflouleGHCC6WJQwe4pPrDVn95hzAfBgNVHSMEGDAWgBSK"
-"dH+vhc3ulc09nNDiRhTzcTUdJzBqBggrBgEFBQcBAQReMFwwJwYIKwYBBQUHMAGG"
-"G2h0dHA6Ly9vY3NwLnBraS5nb29nL2d0czFjMzAxBggrBgEFBQcwAoYlaHR0cDov"
-"L3BraS5nb29nL3JlcG8vY2VydHMvZ3RzMWMzLmRlcjAaBgNVHREEEzARgg9zdXBs"
-"Lmdvb2dsZS5jb20wIQYDVR0gBBowGDAIBgZngQwBAgEwDAYKKwYBBAHWeQIFAzA8"
-"BgNVHR8ENTAzMDGgL6AthitodHRwOi8vY3Jscy5wa2kuZ29vZy9ndHMxYzMvbW9W"
-"RGZJU2lhMmsuY3JsMIIBBQYKKwYBBAHWeQIEAgSB9gSB8wDxAHYArfe++nz/EMiL"
-"nT2cHj4YarRnKV3PsQwkyoWGNOvcgooAAAGFldOuSAAABAMARzBFAiEAvuGHxp2h"
-"cIJIL+Z4AmcbIeI4o0uFiWPuBYt/OZht1RcCIGzucwobkpcMrN9rKpiwr7L5XA0z"
-"HfyWgHaF1ywHMEesAHcAtz77JN+cTbp18jnFulj0bF38Qs96nzXEnh0JgSXttJkA"
-"AAGFldOuGAAABAMASDBGAiEA8WtfQcSdVBey59jKQvk50tufvxg7456y2BBZ5/yL"
-"mIoCIQDUAUg7ADuejictmpfmN7zXqwDnr2tWNtEZal9x4a+4bDANBgkqhkiG9w0B"
-"AQsFAAOCAQEA6D1OJ68JA5CSvDEH6fT4jMKjHZxslAI/47Tvz+y4j/VFljX9DvvL"
-"ckQasRa3Jc7fooVdIai+BX1Ckwdh5fVsmqkS3fS0Zhzi5W68/3qGTaf2dq0OiyDl"
-"EikfcqiRoKlkKA60ML2c9wxFPgUq3oxyAvFpF00WDdH5ysPxj+i4wn37ZA3pgDan"
-"IzZhr5St595oowiBlsficG6pzgxtm4oIfIqQlZHkZBJzJH/nX4bvloVkIPTgGxwS"
-"TZglE2WyTld27mnYH031qBgoWYeJSjjsmT/0L8d2zk4MpDcE/zZjm1hcgQwOhDKq"
-"hGfGSpEgWcJTfPPsFFCnJ34WfhSMPt+IQg=="
-"-----END CERTIFICATE-----";
 
 static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef*);
-static QTEL_Status_t activate(QTEL_GPS_HandlerTypeDef*, uint8_t isActivate);
+static QTEL_Status_t stopGPS(QTEL_GPS_HandlerTypeDef*);
+static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_Mode_t);
+#if QTEL_EN_FEATURE_GPS_ONEXTRA
 static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef*);
+#endif
 static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef*);
 static void onGetNMEA(void *app, uint8_t *data, uint16_t len);
+static void parseTimeStr(QTEL_Datetime_t *dst, const char *src);
 
 QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
 {
@@ -149,15 +121,35 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
       QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
       break;
     }
-    if (activate(qtelGps, 1) != QTEL_OK) {
+
+#if QTEL_EN_FEATURE_GPS_ONEXTRA
+    if (!QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
+      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_WAITING_NTP);
+      break;
+    }
+    if (configureOneXTRA(qtelGps) != QTEL_OK) {
+      break;
+    }
+#endif /* QTEL_EN_FEATURE_GPS_ONEXTRA */
+
+    if (startGPS(qtelGps, QTEL_GPS_STANDALONE) != QTEL_OK) {
       QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
       break;
     }
-    QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_ACTIVE);
+
+    QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXING);
     break;
 
-  case QTEL_GPS_STATE_ACTIVE:
+  case QTEL_GPS_STATE_FIXING:
     qtelGps->getLocTick = qtelGps->stateTick;
+    break;
+
+  case QTEL_GPS_STATE_FIXED:
+    qtelGps->getLocTick = qtelGps->stateTick;
+    if (qtelGps->mode != QTEL_GPS_STANDALONE) {
+      // change mode to stand-alone
+      startGPS(qtelGps, QTEL_GPS_STANDALONE);
+    }
     break;
 
   default: break;
@@ -179,10 +171,59 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
     break;
 
-  case QTEL_GPS_STATE_ACTIVE:
+  case QTEL_GPS_STATE_WAITING_NTP:
+    if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 1000)) {
+      qtelGps->stateTick = qtelPtr->getTick();
+
+      if (QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
+      }
+    }
+    break;
+
+  case QTEL_GPS_STATE_FIXING:
     if (QTEL_IsTimeout(qtelPtr, qtelGps->getLocTick, 2000)) {
       qtelGps->getLocTick = qtelPtr->getTick();
-      acquirePosition(qtelGps);
+      if (acquirePosition(qtelGps) == QTEL_OK) {
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXED);
+        break;
+      }
+    }
+
+#if QTEL_EN_FEATURE_NET
+    switch (qtelGps->mode) {
+    case QTEL_GPS_STANDALONE:
+      if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 60000)) {
+        startGPS(qtelGps, QTEL_GPS_MS_BASED);
+        qtelGps->stateTick = qtelPtr->getTick();
+      }
+      break;
+
+    case QTEL_GPS_MS_BASED:
+      if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 120000)) {
+        startGPS(qtelGps, QTEL_GPS_MS_ASSISTED);
+        qtelGps->stateTick = qtelPtr->getTick();
+      }
+      break;
+
+    case QTEL_GPS_MS_ASSISTED:
+      if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 60000)) {
+        startGPS(qtelGps, QTEL_GPS_STANDALONE);
+        qtelGps->stateTick = qtelPtr->getTick();
+      }
+      break;
+    }
+#endif
+    break;
+
+
+  case QTEL_GPS_STATE_FIXED:
+    if (QTEL_IsTimeout(qtelPtr, qtelGps->getLocTick, 5000)) {
+      qtelGps->getLocTick = qtelPtr->getTick();
+      if (acquirePosition(qtelGps) != QTEL_OK) {
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXING);
+        break;
+      }
     }
     break;
 
@@ -197,7 +238,6 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
   QTEL_Status_t status = QTEL_ERROR;
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
-  int fn = -1;
   AT_Data_t paramData[3];
 
   AT_DataSetString(&paramData[0], "gnssconfig");
@@ -228,28 +268,7 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
   if (qtelGps->config.supl.server != 0) {
     AT_DataSetString(&paramData[0], qtelGps->config.supl.server);
     if (AT_Command(&qtelPtr->atCmd, "+QGPSSUPLURL", 1, paramData, 0, 0) != AT_OK) goto endCmd;
-
-    QTEL_FILE_RemoveFile(&qtelPtr->file, QTEL_SUPL_CA_FILE);
-
-    if (QTEL_FILE_Open(&qtelPtr->file, QTEL_SUPL_CA_FILE, &fn) != QTEL_OK)
-      goto endCmd;
-
-    if (QTEL_FILE_Write(&qtelPtr->file, fn, (const uint8_t*) SUPL_CA, strlen(SUPL_CA)) != QTEL_OK)
-      goto endCmd;
-
-    if (QTEL_FILE_Close(&qtelPtr->file, fn) != QTEL_OK)
-      goto endCmd;
-
-    AT_DataSetString(&paramData[0], QTEL_SUPL_CA_FILE);
-    if (AT_Command(&qtelPtr->atCmd, "+QGPSSUPLCA", 1, paramData, 0, 0) != AT_OK)
-      goto endCmd;
-
   }
-
-#if QTEL_EN_FEATURE_GPS_ONEXTRA
-  status = configureOneXTRA(qtelGps);
-  if (status != QTEL_OK) goto endCmd;
-#endif /* QTEL_EN_FEATURE_GPS_ONEXTRA */
 
   status = QTEL_OK;
 
@@ -257,22 +276,42 @@ endCmd:
   return status;
 }
 
-static QTEL_Status_t activate(QTEL_GPS_HandlerTypeDef *qtelGps, uint8_t isActivate)
+
+static QTEL_Status_t stopGPS(QTEL_GPS_HandlerTypeDef *qtelGps)
+{
+  QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
+
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSEND", 0, 0, 0, 0) != AT_OK)
+    return QTEL_ERROR;
+
+  return QTEL_OK;
+}
+
+
+static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
+                              QTEL_GPS_Mode_t mode)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
   AT_Data_t paramData[1] = {
-      AT_Number(2),
+      AT_Number(mode),
+  };
+  AT_Data_t respData[1] = {
+      AT_Number(0),
   };
 
-  if (isActivate) {
-    if (AT_Command(&qtelPtr->atCmd, "+QGPS", 1, paramData, 0, 0) != AT_OK)
-      return QTEL_ERROR;
-  }
-  else {
-    if (AT_Command(&qtelPtr->atCmd, "+QGPSEND", 0, 0, 0, 0) != AT_OK)
-      return QTEL_ERROR;
+  if (AT_Check(&qtelPtr->atCmd, "+QGPS", 1, respData) == AT_OK) {
+    if (respData[0].type == AT_NUMBER && respData[0].value.number == 0) {
+      goto activateGPS;
+    }
   }
 
+  stopGPS(qtelGps);
+
+  activateGPS:
+  if (AT_Command(&qtelPtr->atCmd, "+QGPS", 1, paramData, 0, 0) != AT_OK)
+    return QTEL_ERROR;
+
+  qtelGps->mode = mode;
   return QTEL_OK;
 }
 
@@ -282,12 +321,15 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
   QTEL_HTTP_Response_t resp;
+  QTEL_Datetime_t currenttime;
+  QTEL_Datetime_t xtratime;
   AT_Data_t paramData[5];
-  uint8_t respstr[24];
+  uint8_t xtratimeStr[24];
   AT_Data_t respData[2] = {
       AT_Number(0),
-      AT_Buffer(respstr, sizeof(respstr)),
+      AT_Buffer(xtratimeStr, sizeof(xtratimeStr)),
   };
+
 
   // [TODO]: check xtra data and time. if it is still available skip configure
 
@@ -299,11 +341,24 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     if (AT_Check(&qtelPtr->atCmd, "+QGPSXTRADATA", 2, respData) != AT_OK)
       return QTEL_ERROR;
 
-    if (respData[0].type == AT_NUMBER
-        && respData[0].value.number > 60)
+    if (respData[1].type == AT_STRING
+        && respData[1].value.string != 0)
     {
-      return QTEL_OK;
+      parseTimeStr(&xtratime, respData[1].value.string);
+
+      QTEL_GetTime(qtelPtr, &currenttime);
+      if (QTEL_Datetime_CompareDate(&currenttime, &xtratime) <= 0) {
+        return QTEL_OK;
+      }
+
+      QTEL_Datetime_AddDays(&currenttime, 7);
+      snprintf((char*)xtratimeStr, 24, "%02d/%02d/%02d,00:00:00",
+               ((int)currenttime.year) + 2000,
+               (int) currenttime.month,
+               (int) currenttime.day
+               );
     }
+    else return QTEL_OK;
 
     QTEL_FILE_RemoveFile(&qtelPtr->file, QTEL_ONEXTRA_TMP_FILE);
     if (QTEL_HTTP_DownloadAndSave(&qtelPtr->http,
@@ -316,7 +371,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
 
     AT_DataSetNumber(&paramData[0], 0);
-    AT_DataSetString(&paramData[1], "2023/02/08,08:30:30");
+    AT_DataSetString(&paramData[1], "2023/03/08,00:00:00");
     AT_DataSetNumber(&paramData[2], 1);
     AT_DataSetNumber(&paramData[3], 1);
     AT_DataSetNumber(&paramData[4], 3500);
@@ -326,7 +381,6 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     AT_DataSetString(&paramData[0], QTEL_ONEXTRA_TMP_FILE);
     if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRADATA", 1, paramData, 0, 0) != AT_OK)
       return QTEL_ERROR;
-
   }
 
   return QTEL_OK;
@@ -353,4 +407,26 @@ static void onGetNMEA(void *app, uint8_t *data, uint16_t len)
   *(data+len) = 0;
 }
 
+static void parseTimeStr(QTEL_Datetime_t *dst, const char *src)
+{
+  uint8_t *dtbytes = (uint8_t*) dst;
+  uint8_t len = (uint8_t) sizeof(QTEL_Datetime_t);
+  uint8_t isParsing = 0;
+
+  while (*src && len > 0) {
+    if (*src >= '0' && *src <= '9') {
+      if (!isParsing) {
+        isParsing = 1;
+        *dtbytes = (atoi(src) - ((dtbytes == &dst->year)? 2000: 0));
+        dtbytes++;
+        len--;
+      }
+    }
+    else {
+      isParsing = 0;
+    }
+
+    src++;
+  }
+}
 #endif /* QTEL_EN_FEATURE_GPS */

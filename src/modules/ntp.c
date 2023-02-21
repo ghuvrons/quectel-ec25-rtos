@@ -107,6 +107,7 @@ static void onSynced(void *app, AT_Data_t *_)
   qtelPtr->events = 0;
   QTEL_Debug("[NTP] synced");
   QTEL_SET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED);
+
   qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_NTP_SYNCED);
 }
 

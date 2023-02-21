@@ -175,7 +175,7 @@ static void str2Time(QTEL_Datetime_t *dt, const char *str)
   uint8_t isParsing = 0;
 
   while (*str && len > 0) {
-    if ((*str > '0' && *str < '9')) {
+    if ((*str >= '0' && *str <= '9')) {
       if (!isParsing) {
         isParsing = 1;
         *dtbytes = ((int8_t) atoi(str)) * mult;
