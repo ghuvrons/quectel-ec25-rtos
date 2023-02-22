@@ -115,7 +115,7 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 
 #if QTEL_EN_FEATURE_NTP
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_NTP_SYNCED)) {
-        QTEL_NTP_OnSynced(&qtelPtr->ntp);
+        QTEL_NTP_OnSyncingFinish(&qtelPtr->ntp);
       }
 #endif /* QTEL_EN_FEATURE_NTP */
 

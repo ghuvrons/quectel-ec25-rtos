@@ -14,11 +14,13 @@
 
 #include <quectel-ec25/types.h>
 
-#define QTEL_NTP_WAS_SYNCED     0x01
+#define QTEL_NTP_WAS_SYNCING    0x01
+#define QTEL_NTP_WAS_SYNCED     0x02
 
 typedef struct {
   void      *qtel;
   uint8_t   status;
+  uint8_t   contextId;
   char      *server;
   uint16_t  port;
   uint32_t  syncTick;
@@ -33,8 +35,8 @@ typedef struct {
 QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef*, void *qtelPtr);
 QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef*, char *server, uint16_t port);
 QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef*);
-
-QTEL_Status_t QTEL_NTP_OnSynced(QTEL_NTP_HandlerTypeDef*);
+QTEL_Status_t QTEL_NTP_Sync(QTEL_NTP_HandlerTypeDef*);
+QTEL_Status_t QTEL_NTP_OnSyncingFinish(QTEL_NTP_HandlerTypeDef*);
 
 
 #endif /* QTEL_EN_FEATURE_NTP */

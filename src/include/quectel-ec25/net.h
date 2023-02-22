@@ -63,6 +63,7 @@ void          QTEL_NET_Loop(QTEL_NET_HandlerTypeDef*);
 QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef*);
 QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
 QTEL_Status_t QTEL_NET_ActivateContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
+QTEL_Status_t QTEL_NET_DeactivateContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
 
 #endif /* QTEL_EN_FEATURE_NET */
 #endif /* QUECTEL_EC25_NET_H_ */

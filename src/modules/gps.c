@@ -71,7 +71,6 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_Mode_t);
 static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef*);
 #endif
 static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef*);
-static void onGetNMEA(void *app, uint8_t *data, uint16_t len);
 static void parseTimeStr(QTEL_Datetime_t *dst, const char *src);
 
 QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
@@ -87,8 +86,6 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
     qtelGps->isConfigured = QTEL_GPS_CONFIG_KEY;
     memcpy(&qtelGps->config, &defaultConfig, sizeof(QTEL_GPS_Config_t));
   }
-
-  AT_ReadlineOn(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "$", (QTEL_HandlerTypeDef*) qtelPtr, onGetNMEA);
 
   return QTEL_OK;
 }
@@ -331,8 +328,6 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
   };
 
 
-  // [TODO]: check xtra data and time. if it is still available skip configure
-
   if (qtelGps->config.oneXTRA.dataURL != 0) {
     AT_DataSetNumber(&paramData[0], 1);
     if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRA", 1, paramData, 0, 0) != AT_OK)
@@ -341,21 +336,30 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     if (AT_Check(&qtelPtr->atCmd, "+QGPSXTRADATA", 2, respData) != AT_OK)
       return QTEL_ERROR;
 
-    if (respData[1].type == AT_STRING
-        && respData[1].value.string != 0)
+    if (respData[0].type == AT_NUMBER &&
+        respData[1].type == AT_STRING &&
+        respData[1].value.string != 0)
     {
       parseTimeStr(&xtratime, respData[1].value.string);
+      QTEL_Datetime_AddSeconds(&xtratime, (respData[0].value.number * 60));
+
 
       QTEL_GetTime(qtelPtr, &currenttime);
-      if (QTEL_Datetime_CompareDate(&currenttime, &xtratime) <= 0) {
+      QTEL_Datetime_SetToUTC(&currenttime);
+
+      // if currenttime > (xtratime (expiredtime) - 1 day)
+      if (QTEL_Datetime_Diff(&currenttime, &xtratime) <= 1440)
+      {
         return QTEL_OK;
       }
 
-      QTEL_Datetime_AddDays(&currenttime, 7);
-      snprintf((char*)xtratimeStr, 24, "%02d/%02d/%02d,00:00:00",
+      snprintf((char*)xtratimeStr, 24, "%02d/%02d/%02d,%02d:%02d:%02d",
                ((int)currenttime.year) + 2000,
                (int) currenttime.month,
-               (int) currenttime.day
+               (int) currenttime.day,
+               (int) currenttime.hour,
+               (int) currenttime.minute,
+               (int) currenttime.second
                );
     }
     else return QTEL_OK;
@@ -371,7 +375,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
 
     AT_DataSetNumber(&paramData[0], 0);
-    AT_DataSetString(&paramData[1], "2023/03/08,00:00:00");
+    AT_DataSetString(&paramData[1], (char*)xtratimeStr);
     AT_DataSetNumber(&paramData[2], 1);
     AT_DataSetNumber(&paramData[3], 1);
     AT_DataSetNumber(&paramData[4], 3500);
@@ -400,12 +404,6 @@ static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef *qtelGps)
   return QTEL_OK;
 }
 
-
-static void onGetNMEA(void *app, uint8_t *data, uint16_t len)
-{
-  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
-  *(data+len) = 0;
-}
 
 static void parseTimeStr(QTEL_Datetime_t *dst, const char *src)
 {

@@ -149,6 +149,12 @@ QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef *qtelNet)
     }
     if (qtelNet->gprs_status == 5)
       QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_GPRS_ROAMING);
+
+#if QTEL_EN_FEATURE_NTP
+    if (qtelPtr->ntp.status == 0)
+      QTEL_NTP_Sync(&qtelPtr->ntp);
+#endif
+
   }
   else {
     if (qtelNet->state > QTEL_NET_STATE_CHECK_GPRS)
@@ -225,8 +231,9 @@ checkContext:
   // check
   if (AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]) != AT_OK) return QTEL_ERROR;
   for (uint8_t i = 0; i < 16; i++) {
-    if (respData[i][0].type == AT_NUMBER
-        && respData[i][0].value.number == contextId) {
+    if (respData[i][0].type == AT_NUMBER &&
+        respData[i][0].value.number == contextId)
+    {
       if (respData[i][1].value.number == 1)
       {
         status = QTEL_OK;
@@ -254,6 +261,52 @@ checkContext:
     goto endCmd;
   }
   commandSent = 1;
+  goto checkContext;
+
+endCmd:
+  return status;
+}
+
+
+QTEL_Status_t QTEL_NET_DeactivateContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
+{
+  if (contextId > 16) return QTEL_ERROR;
+
+  QTEL_Status_t status          = QTEL_ERROR;
+  QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
+  AT_Data_t respData[16][3];
+  AT_Data_t paramData[1] = {
+    AT_Number(contextId),
+  };
+
+checkContext:
+  memset(respData, 0, sizeof(respData));
+
+  // check
+  if (AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]) != AT_OK) return QTEL_ERROR;
+  for (uint8_t i = 0; i < 16; i++) {
+    if (respData[i][0].type == AT_NUMBER &&
+        respData[i][0].value.number == contextId)
+    {
+      if (respData[i][1].value.number == 1) {
+        goto execCmd;
+      }
+      break;
+    }
+  }
+
+  status = QTEL_OK;
+  QTEL_BITS_UNSET(qtelNet->isCtxActived, (1 << (contextId-1)));
+  goto endCmd;
+
+  // command
+execCmd:
+  if (AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
+                            1, paramData, 0, 0, 40000) != AT_OK)
+  {
+    // [TODO]: Reset modem
+    goto endCmd;
+  }
   goto checkContext;
 
 endCmd:
