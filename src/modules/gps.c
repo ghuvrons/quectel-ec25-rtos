@@ -218,6 +218,7 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
     if (QTEL_IsTimeout(qtelPtr, qtelGps->getLocTick, 5000)) {
       qtelGps->getLocTick = qtelPtr->getTick();
       if (acquirePosition(qtelGps) != QTEL_OK) {
+        startGPS(qtelGps, QTEL_GPS_MS_BASED);
         QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXING);
         break;
       }
