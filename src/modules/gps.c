@@ -395,11 +395,41 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
 static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
+
+  struct {
+    uint8_t utc[11];
+    uint8_t date[7];
+  } tmpBuffer;
+
+  // [TODO] : gen resp of lat long and save to gps data.
+  //
+
   AT_Data_t paramData[1];
+  AT_Data_t respData[11] = {
+      AT_Buffer(tmpBuffer.utc, 11), // UTC
+      AT_Float(0),                  // Latitude
+      AT_Float(0),                  // Longitude
+      AT_Float(0),                  // HDOP : float one digit after point
+      AT_Float(0),                  // Altitude
+      AT_Number(0),                 // fix : 2 (2D), 3 (3D)
+      AT_Float(0),                  // COG : Curve over ground
+      AT_Float(0),                  // spkm : speed over ground (kmph)
+      AT_Float(0),                  // spkn : speed over ground (spkn)
+      AT_Buffer(tmpBuffer.date, 7), // Date : yymmdd
+      AT_Number(0)                  // number of satellites
+  };
 
   AT_DataSetNumber(&paramData[0], 2);
-  if (AT_Command(&qtelPtr->atCmd, "+QGPSLOC", 1, paramData, 0, 0) != AT_OK)
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSLOC", 1, paramData, 11, respData) != AT_OK)
     return QTEL_ERROR;
+
+  qtelGps->data.latitude  = respData[1].value.floatNumber;
+  qtelGps->data.longitude = respData[2].value.floatNumber;
+  qtelGps->data.altitude  = (respData[5].value.number == 3)? respData[4].value.floatNumber: 0.0;
+  qtelGps->data.HDOP      = respData[3].value.floatNumber;
+  qtelGps->data.COG       = respData[6].value.floatNumber;
+  qtelGps->data.speed     = respData[7].value.floatNumber;
+  qtelGps->data.satelliteNumber = respData[10].value.number;
 
   return QTEL_OK;
 }

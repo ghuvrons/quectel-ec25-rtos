@@ -121,11 +121,13 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   QTEL_GPS_Config_t   config;
 
   struct {
-    float longitude;
     float latitude;
+    float longitude;
     float altitude;
     float HDOP;
-    float fix;
+    float COG;
+    float speed;
+    uint8_t satelliteNumber;
   } data;
 } QTEL_GPS_HandlerTypeDef;
 
