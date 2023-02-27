@@ -40,7 +40,7 @@ QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
   AT_On(&((QTEL_HandlerTypeDef*)qtelhttp->qtel)->atCmd, "+QHTTPGET",
         qtelhttp->qtel, 3, httpActionResp, onGetResponse);
   AT_On(&((QTEL_HandlerTypeDef*)qtelhttp->qtel)->atCmd, "+QHTTPREADFILE",
-        qtelhttp->qtel, 3, httpActionResp, onReadIntoFileDone);
+        qtelhttp->qtel, 1, httpActionResp, onReadIntoFileDone);
 
   return QTEL_OK;
 }

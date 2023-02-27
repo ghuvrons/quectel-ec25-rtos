@@ -185,14 +185,10 @@ uint16_t QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint
       AT_Number(length),
   };
 
-  uint8_t resp[16];
-  AT_Data_t respData[1] = {
-      AT_Buffer(resp, 16),
-  };
-
+  // [TODO]: response SEND FAIL is not handled yet
   if (AT_CommandWrite(&qtelPtr->atCmd, "+QISEND", "> ", "SEND ",
                       data, length,
-                      2, paramData, 1, respData) != AT_OK)
+                      2, paramData, 0, 0) != AT_OK)
   {
     return 0;
   }

@@ -26,7 +26,6 @@ QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef *sockMgr, void *q
 
   sockMgr->qtel       = qtelPtr;
 
-
   AT_Data_t *socketOpenResp = malloc(sizeof(AT_Data_t)*2);
   AT_On(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "+QIOPEN",
         (QTEL_HandlerTypeDef*) qtelPtr, 2, socketOpenResp, onSocketOpened);
