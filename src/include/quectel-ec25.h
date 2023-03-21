@@ -48,6 +48,7 @@ typedef struct QTEL_HandlerTypeDef {
     uint32_t checksignal;
   } tick;
 
+  QTEL_Status_t (*resetPower)(void);
   void (*delay)(uint32_t ms);
   uint32_t (*getTick)(void);
 
@@ -113,7 +114,6 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef*);
 void QTEL_Thread_ATCHandler(QTEL_HandlerTypeDef*);
 
 QTEL_Status_t QTEL_Start(QTEL_HandlerTypeDef*);
-QTEL_Status_t QTEL_ResetPower(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef*);
 void QTEL_SetState(QTEL_HandlerTypeDef*, uint8_t newState);
 

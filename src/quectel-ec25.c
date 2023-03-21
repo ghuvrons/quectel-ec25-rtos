@@ -107,6 +107,12 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
   uint32_t timeout = 2000; // ms
   uint32_t lastTO = 0;
 
+  if (qtelPtr->resetPower != 0) {
+    while (qtelPtr->resetPower() != QTEL_OK) {
+      qtelPtr->delay(1);
+    }
+  }
+
   for (;;) {
     if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_ALL, &notifEvent, timeout) == AT_OK) {
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_READY)) {
@@ -187,12 +193,6 @@ void QTEL_Thread_ATCHandler(QTEL_HandlerTypeDef *qtelPtr)
 
 
 QTEL_Status_t QTEL_Start(QTEL_HandlerTypeDef *qtelPtr)
-{
-  return QTEL_OK;
-}
-
-
-__attribute__((weak)) QTEL_Status_t QTEL_ResetPower(QTEL_HandlerTypeDef *qtelPtr)
 {
   return QTEL_OK;
 }
