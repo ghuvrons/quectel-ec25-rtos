@@ -54,7 +54,7 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
 
-  if (qtelPtr->net.state != QTEL_NET_STATE_ONLINE) return QTEL_ERROR;
+  if (qtelPtr->state != QTEL_STATE_ACTIVE) return QTEL_ERROR;
 
   if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
     if ((qtelPtr->getTick() - qtelNTP->syncTick) > qtelNTP->config.resyncInterval)

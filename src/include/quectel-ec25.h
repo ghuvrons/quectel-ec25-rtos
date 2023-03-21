@@ -13,15 +13,19 @@
 #include <at-command.h>
 
 #define QTEL_STATUS_ACTIVE          0x01
-#define QTEL_STATUS_ROAMING         0x08
-#define QTEL_STATUS_UART_READING    0x10
-#define QTEL_STATUS_UART_WRITING    0x20
-#define QTEL_STATUS_CMD_RUNNING     0x40
+#define QTEL_STATUS_CONFIGURED      0x02
+#define QTEL_STATUS_SIM_READY       0x04
+#define QTEL_STATUS_NET_REGISTERED  0x08
+#define QTEL_STATUS_GPRS_REGISTERED 0x10
+#define QTEL_STATUS_UART_READING    0x20
+#define QTEL_STATUS_UART_WRITING    0x40
+#define QTEL_STATUS_CMD_RUNNING     0x80
 
 enum {
  QTEL_STATE_NON_ACTIVE,
  QTEL_STATE_READY,
  QTEL_STATE_CHECK_AT,
+ QTEL_STATE_CONFIGURATION,
  QTEL_STATE_CHECK_SIMCARD,
  QTEL_STATE_CHECK_NETWORK,
  QTEL_STATE_ACTIVE,
@@ -63,6 +67,7 @@ typedef struct QTEL_HandlerTypeDef {
   } rtos;
 
   uint8_t network_status;
+  uint8_t GPRS_network_status;
 
   #if QTEL_EN_FEATURE_NET
   QTEL_NET_HandlerTypeDef net;
@@ -107,6 +112,9 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef*);
 void QTEL_Thread_Run(QTEL_HandlerTypeDef*);
 void QTEL_Thread_ATCHandler(QTEL_HandlerTypeDef*);
 
+QTEL_Status_t QTEL_Start(QTEL_HandlerTypeDef*);
+QTEL_Status_t QTEL_ResetPower(QTEL_HandlerTypeDef*);
+QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef*);
 void QTEL_SetState(QTEL_HandlerTypeDef*, uint8_t newState);
 
 #endif /* QUECTEL_EC25_H */

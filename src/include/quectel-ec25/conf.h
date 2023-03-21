@@ -14,6 +14,21 @@
 #define QTEL_DEBUG 1
 #endif
 
+/* PDP Context ID */
+
+#ifndef QTEL_CID_SOCKET
+#define QTEL_CID_SOCKET 2
+#endif
+
+#ifndef QTEL_CID_HTTP
+#define QTEL_CID_HTTP   3
+#endif
+
+#ifndef QTEL_CID_NTP
+#define QTEL_CID_NTP    4
+#endif
+
+
 #ifndef QTEL_EN_FEATURE_GPS
 #define QTEL_EN_FEATURE_GPS 0
 #endif

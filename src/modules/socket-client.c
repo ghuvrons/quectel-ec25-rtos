@@ -52,14 +52,14 @@ QTEL_Status_t QTEL_SockClient_Init(QTEL_SocketClient_t *sock, const char *host, 
   if (sock->buffer == NULL)
     return QTEL_ERROR;
 
-  sock->state = QTEL_SOCK_CLIENT_STATE_CLOSE;
+  sock->state = QTEL_SOCK_STATE_CLOSE;
   return QTEL_OK;
 }
 
 
 QTEL_Status_t QTEL_SockClient_OnNetOpened(QTEL_SocketClient_t *sock)
 {
-  if (sock->state == QTEL_SOCK_CLIENT_STATE_WAIT_NETOPEN) {
+  if (sock->state == QTEL_SOCK_STATE_WAIT_PDP_ACTIVE) {
     return sockOpen(sock);
   }
   return QTEL_OK;
@@ -76,10 +76,10 @@ QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t *sock)
   }
   if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_CLOSED)) {
     QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
-    if (sock->state == QTEL_SOCK_CLIENT_STATE_OPEN_PENDING) {
+    if (sock->state == QTEL_SOCK_STATE_OPEN_PENDING) {
       sockOpen(sock);
     } else {
-      sock->state = QTEL_SOCK_CLIENT_STATE_CLOSE;
+      sock->state = QTEL_SOCK_STATE_CLOSE;
       sock->tick.reconnDelay = qtelPtr->getTick();
       if (sock->listeners.onClosed) sock->listeners.onClosed();
     }
@@ -97,18 +97,18 @@ QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t *sock)
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
   switch (sock->state) {
-  case QTEL_SOCK_CLIENT_STATE_WAIT_NETOPEN:
+  case QTEL_SOCK_STATE_WAIT_PDP_ACTIVE:
     sockOpen(sock);
     break;
 
-  case QTEL_SOCK_CLIENT_STATE_OPENING:
+  case QTEL_SOCK_STATE_OPENING:
     if (sock->tick.connecting && QTEL_IsTimeout(qtelPtr, sock->tick.connecting, 30000)) {
-      sock->state = QTEL_SOCK_CLIENT_STATE_OPEN_PENDING;
+      sock->state = QTEL_SOCK_STATE_OPEN_PENDING;
       QTEL_SockClient_Close(sock);
     }
     break;
 
-  case QTEL_SOCK_CLIENT_STATE_CLOSE:
+  case QTEL_SOCK_STATE_CLOSE:
     if (sock->tick.reconnDelay == 0) {
 
     }
@@ -129,9 +129,14 @@ void QTEL_SockClient_SetBuffer(QTEL_SocketClient_t *sock, void *buffer)
   sock->buffer = buffer;
 }
 
-
+/**
+ * @brief Open the socket
+ * @param sock
+ * @param qtelPtr
+ * @return
+ */
 QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t *sock,
-                                  QTEL_HandlerTypeDef *qtelPtr)
+                                   QTEL_HandlerTypeDef *qtelPtr)
 {
   if (qtelPtr->key != QTEL_KEY)
     return QTEL_ERROR;
@@ -145,12 +150,10 @@ QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t *sock,
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
 
-  if (qtelPtr->net.state == QTEL_NET_STATE_SET_PDP_CONTEXT) {
-    sock->state = QTEL_SOCK_CLIENT_STATE_WAIT_NETOPEN;
+  if (qtelPtr->socketManager.state != QTEL_SOCKH_STATE_PDP_ACTIVE) {
+    QTEL_SockManager_PDP_Activate(&qtelPtr->socketManager);
+    sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
     return QTEL_OK;
-  }
-  else if (qtelPtr->net.state != QTEL_NET_STATE_ONLINE) {
-    return QTEL_ERROR;
   }
 
   sockOpen(sock);
@@ -178,7 +181,7 @@ uint16_t QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
-  if (sock->state != QTEL_SOCK_CLIENT_STATE_OPEN) return 0;
+  if (sock->state != QTEL_SOCK_STATE_OPEN) return 0;
 
   AT_Data_t paramData[2] = {
       AT_Number(sock->linkNum),
@@ -217,14 +220,14 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 
   if (isSockConnected(sock)) {
     sockClose(sock);
-    sock->state = QTEL_SOCK_CLIENT_STATE_OPEN_PENDING;
+    sock->state = QTEL_SOCK_STATE_OPEN_PENDING;
     return QTEL_ERROR;
   }
 
-  sock->state = QTEL_SOCK_CLIENT_STATE_OPENING;
+  sock->state = QTEL_SOCK_STATE_OPENING;
   sock->tick.connecting = qtelPtr->getTick();
   if (AT_Command(&qtelPtr->atCmd, "+QIOPEN", 5, paramData, 0, 0) != AT_OK) {
-    sock->state = QTEL_SOCK_CLIENT_STATE_OPEN_PENDING;
+    sock->state = QTEL_SOCK_STATE_OPEN_PENDING;
     return QTEL_ERROR;
   }
 
@@ -298,7 +301,7 @@ static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
   if (AT_Command(&qtelPtr->atCmd, "+QICLOSE", 1, &paramData, 0, 0) != AT_OK) {
     return QTEL_ERROR;
   }
-  sock->state = QTEL_SOCK_CLIENT_STATE_CLOSE;
+  sock->state = QTEL_SOCK_STATE_CLOSE;
   QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
   qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   return QTEL_OK;

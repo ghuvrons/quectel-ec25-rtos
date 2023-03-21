@@ -60,22 +60,6 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
   qtelNet->stateTick = qtelPtr->getTick();
 
   switch (qtelNet->state) {
-  case QTEL_NET_STATE_CHECK_GPRS:
-    QTEL_Debug("Checking GPRS...");
-    if (QTEL_NET_GPRS_Check(qtelNet) == QTEL_OK) {
-      QTEL_Debug("GPRS registered%s", (qtelNet->gprs_status == 5)? " (roaming)":"");
-
-#if QTEL_EN_FEATURE_GPS
-      if (qtelPtr->gps.state == QTEL_GPS_STATE_NON_ACTIVE) {
-        QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
-      }
-#endif /* QTEL_EN_FEATURE_GPS */
-    }
-    else if (qtelPtr->network_status == 2) {
-      QTEL_Debug("GPRS Registering....");
-    }
-    break;
-
   case QTEL_NET_STATE_SET_PDP_CONTEXT:
     if (qtelNet->APN.APN != NULL) {
       if (QTEL_NET_ConfigureContext(qtelNet, qtelNet->contextId) == QTEL_OK)
@@ -90,9 +74,6 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
     break;
 
   case QTEL_NET_STATE_ONLINE:
-#if QTEL_EN_FEATURE_SOCKET
-    QTEL_SockManager_OnNetOnline(&qtelPtr->socketManager);
-#endif
     break;
 
   default: break;

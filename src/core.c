@@ -19,10 +19,6 @@ QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
 
   if (AT_Command(&qtelPtr->atCmd, "", 0, 0, 0, 0) == AT_OK) {
     status = QTEL_OK;
-    if (qtelPtr->state <= QTEL_STATE_CHECK_AT) {
-      qtelPtr->state = QTEL_STATE_CHECK_AT+1;
-    }
-    QTEL_Echo(qtelPtr, 0);
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_ACTIVE);
   } else {
     qtelPtr->state = QTEL_STATE_CHECK_AT;
@@ -57,8 +53,10 @@ QTEL_Status_t QTEL_CheckSIMCard(QTEL_HandlerTypeDef *qtelPtr)
 
   AT_Check(&qtelPtr->atCmd, "+CPIN", 1, respData);
   if (strncmp(respData[0].value.string, "READY", 5) == 0) {
+    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_SIM_READY);
     status = QTEL_OK;
   }
+
   return status;
 }
 
@@ -88,13 +86,49 @@ QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
     if (qtelPtr->state <= QTEL_STATE_CHECK_NETWORK) {
       QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
     }
-    if (qtelPtr->network_status == 5)
-      QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_ROAMING);
+    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
   }
   else {
     if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
       qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
-    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_ROAMING);
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
+  }
+
+  return status;
+}
+
+
+QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
+{
+  QTEL_Status_t status = QTEL_ERROR;
+  uint8_t lac[2]; // location area code
+  uint8_t ci[2];  // Cell Identify
+
+  AT_Data_t respData[4] = {
+    AT_Number(0),
+    AT_Number(0),
+    AT_Hex(lac),
+    AT_Hex(ci),
+  };
+
+  memset(lac, 0, 2);
+  memset(ci, 0, 2);
+
+  if (AT_Check(&qtelPtr->atCmd, "+CGREG", 4, respData) != AT_OK) return status;
+  qtelPtr->GPRS_network_status = (uint8_t) respData[1].value.number;
+
+  // check response
+  if (qtelPtr->GPRS_network_status == 1 || qtelPtr->GPRS_network_status == 5) {
+    status = QTEL_OK;
+    if (qtelPtr->state <= QTEL_STATE_CHECK_NETWORK) {
+      QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
+    }
+    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
+  }
+  else {
+    if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
+      qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
   }
 
   return status;
