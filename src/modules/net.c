@@ -23,7 +23,6 @@ QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef *qtelNet, void *qtelPtr)
     return QTEL_ERROR;
 
   qtelNet->qtel         = qtelPtr;
-  qtelNet->contextId    = 1;
   qtelNet->status       = 0;
   qtelNet->events       = 0;
   qtelNet->gprs_status  = 0;
@@ -43,107 +42,6 @@ void QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef *qtelNet, char *APN, char *user, 
     qtelNet->APN.user = user;
   if (strlen(pass) > 0)
     qtelNet->APN.pass = pass;
-}
-
-
-void QTEL_NET_SetState(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t newState)
-{
-  qtelNet->state = newState;
-  ((QTEL_HandlerTypeDef*) qtelNet->qtel)->rtos.eventSet(QTEL_RTOS_EVT_NET_NEW_STATE);
-}
-
-
-void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
-{
-  QTEL_HandlerTypeDef *qtelPtr = qtelNet->qtel;
-
-  qtelNet->stateTick = qtelPtr->getTick();
-
-  switch (qtelNet->state) {
-  case QTEL_NET_STATE_SET_PDP_CONTEXT:
-    if (qtelNet->APN.APN != NULL) {
-      if (QTEL_NET_ConfigureContext(qtelNet, qtelNet->contextId) == QTEL_OK)
-      {
-        QTEL_Debug("APN was configured");
-      }
-      if (QTEL_NET_ActivateContext(qtelNet, qtelNet->contextId) == QTEL_OK)
-      {
-        QTEL_Debug("APS active");
-      }
-    }
-    break;
-
-  case QTEL_NET_STATE_ONLINE:
-    break;
-
-  default: break;
-  }
-
-  return;
-}
-
-
-void QTEL_NET_Loop(QTEL_NET_HandlerTypeDef *qtelNet)
-{
-  QTEL_HandlerTypeDef *qtelPtr = qtelNet->qtel;
-
-  switch (qtelNet->state) {
-  case QTEL_NET_STATE_CHECK_GPRS:
-    if (QTEL_IsTimeout(qtelPtr, qtelNet->stateTick, 2000)) {
-      QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_CHECK_GPRS);
-    }
-    break;
-
-  default: break;
-  }
-
-  return;
-}
-
-
-QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef *qtelNet)
-{
-  QTEL_HandlerTypeDef *qtelPtr = qtelNet->qtel;
-  QTEL_Status_t status = QTEL_ERROR;
-
-  uint8_t lac[2]; // location area code
-  uint8_t ci[2];  // Cell Identify
-
-  AT_Data_t respData[4] = {
-    AT_Number(0),
-    AT_Number(0),
-    AT_Hex(lac),
-    AT_Hex(ci),
-  };
-
-  memset(lac, 0, 2);
-  memset(ci, 0, 2);
-
-  if (AT_Check(&qtelPtr->atCmd, "+CGREG", 4, respData) != AT_OK) return status;
-  qtelNet->gprs_status = (uint8_t) respData[1].value.number;
-
-  // check response
-  if (qtelNet->gprs_status == 1 || qtelNet->gprs_status == 5) {
-    status = QTEL_OK;
-    if (qtelNet->state <= QTEL_NET_STATE_CHECK_GPRS) {
-      QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_SET_PDP_CONTEXT);
-    }
-    if (qtelNet->gprs_status == 5)
-      QTEL_SET_STATUS(qtelNet, QTEL_NET_STATUS_GPRS_ROAMING);
-
-#if QTEL_EN_FEATURE_NTP
-    if (qtelPtr->ntp.status == 0)
-      QTEL_NTP_Sync(&qtelPtr->ntp);
-#endif
-
-  }
-  else {
-    if (qtelNet->state > QTEL_NET_STATE_CHECK_GPRS)
-      qtelNet->state = QTEL_NET_STATE_CHECK_GPRS;
-    QTEL_UNSET_STATUS(qtelNet, QTEL_NET_STATUS_GPRS_ROAMING);
-  }
-
-  return status;
 }
 
 
@@ -218,10 +116,6 @@ checkContext:
       if (respData[i][1].value.number == 1)
       {
         status = QTEL_OK;
-        QTEL_BITS_SET(qtelNet->isCtxActived, (1 << (contextId-1)));
-        if (qtelNet->contextId == contextId) {
-          QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ONLINE);
-        }
         goto endCmd;
       }
       break;
@@ -292,6 +186,35 @@ execCmd:
 
 endCmd:
   return status;
+}
+
+
+QTEL_Status_t QTEL_NET_DataCounterReset(QTEL_NET_HandlerTypeDef *qtelNet)
+{
+  QTEL_HandlerTypeDef *qtelPtr = qtelNet->qtel;
+
+  if (AT_Command(&qtelPtr->atCmd, "+QGDCNT=0", 0, 0, 0, 0) != AT_OK) return QTEL_ERROR;
+  return QTEL_OK;
+}
+
+
+QTEL_Status_t QTEL_NET_GetDataCounter(QTEL_NET_HandlerTypeDef *qtelNet, uint32_t *sent, uint32_t *recv)
+{
+  QTEL_HandlerTypeDef *qtelPtr = qtelNet->qtel;
+
+  AT_Data_t respData[2] = {
+    AT_Number(0),
+    AT_Number(0),
+  };
+
+  if (qtelPtr->state != QTEL_STATE_ACTIVE) return QTEL_ERROR;
+
+  if (AT_Check(&qtelPtr->atCmd, "+QGDCNT", 2, respData) != AT_OK) return QTEL_ERROR;
+
+  *sent = respData[0].value.number;
+  *recv = respData[1].value.number;
+
+  return QTEL_OK;
 }
 
 #endif /* QTEL_EN_FEATURE_NET */

@@ -129,12 +129,6 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 #endif /* QTEL_EN_FEATURE_GPS */
       }
 
-#if QTEL_EN_FEATURE_NET
-      if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_NET_NEW_STATE)) {
-        QTEL_NET_OnNewState(&qtelPtr->net);
-      }
-#endif /* QTEL_EN_FEATURE_NET */
-
 #if QTEL_EN_FEATURE_SOCKET
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_SOCKH_NEW_EVT)) {
         QTEL_SockManager_OnNewState(&qtelPtr->socketManager);
@@ -161,10 +155,6 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 
     lastTO = qtelPtr->getTick();
     loop(qtelPtr);
-
-#if QTEL_EN_FEATURE_NET
-    QTEL_NET_Loop(&qtelPtr->net);
-#endif /* QTEL_EN_FEATURE_NET */
 
 #if QTEL_EN_FEATURE_SOCKET
     QTEL_SockManager_Loop(&qtelPtr->socketManager);

@@ -171,9 +171,6 @@ QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t *sock)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
-  AT_Data_t paramData[4] = {
-      AT_Number(sock->linkNum),
-  };
   if (getSockState(sock) != 0) {
     return sockClose(sock);
   }

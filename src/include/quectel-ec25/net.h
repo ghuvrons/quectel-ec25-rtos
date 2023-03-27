@@ -33,7 +33,6 @@ typedef struct {
   void      *qtel;         // QTEL_HandlerTypeDef
   uint16_t  isCtxConfigured;
   uint16_t  isCtxActived;
-  uint8_t   contextId;
   uint8_t   status;
   uint8_t   state;
   uint8_t   events;
@@ -57,13 +56,17 @@ typedef struct {
 QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef*, void *hsim);
 void          QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef*, char *APN, char *user, char *pass);
 
-void          QTEL_NET_SetState(QTEL_NET_HandlerTypeDef*, uint8_t newState);
-void          QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef*);
-void          QTEL_NET_Loop(QTEL_NET_HandlerTypeDef*);
-QTEL_Status_t QTEL_NET_GPRS_Check(QTEL_NET_HandlerTypeDef*);
+// Context
+
 QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
 QTEL_Status_t QTEL_NET_ActivateContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
 QTEL_Status_t QTEL_NET_DeactivateContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
+
+// Data Counter
+
+QTEL_Status_t QTEL_NET_DataCounterReset(QTEL_NET_HandlerTypeDef*);
+QTEL_Status_t QTEL_NET_GetDataCounter(QTEL_NET_HandlerTypeDef*, uint32_t *sent, uint32_t *recv);
+
 
 #endif /* QTEL_EN_FEATURE_NET */
 #endif /* QUECTEL_EC25_NET_H_ */
