@@ -230,8 +230,8 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_Echo(qtelPtr, 0);
     AT_Command(&qtelPtr->atCmd, "+QURCCFG=\"urcport\",\"uart1\"", 0, 0, 0, 0);
     AT_Command(&qtelPtr->atCmd, "+QCFG=\"urc/poweron\",0", 0, 0, 0, 0);
-    AT_Command(&qtelPtr->atCmd, "+CREG=2", 0, 0, 0, 0);
-    AT_Command(&qtelPtr->atCmd, "+CGREG=2", 0, 0, 0, 0);
+    AT_Command(&qtelPtr->atCmd, "+CREG=1", 0, 0, 0, 0);
+    AT_Command(&qtelPtr->atCmd, "+CGREG=1", 0, 0, 0, 0);
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED);
     QTEL_ResetSIM(qtelPtr);
     QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_SIMCARD);

@@ -15,10 +15,10 @@
 #include <string.h>
 
 
-#define Get_Available_LinkNum(hsimsock, linkNum) {\
+#define Get_Available_LinkNum(hsimsock, sock) {\
   for (int16_t i = 0; i < QTEL_NUM_OF_SOCKET; i++) {\
-    if ((hsimsock)->sockets[i] == NULL) {\
-      *(linkNum) = i;\
+    if ((hsimsock)->sockets[i] == NULL || sock == (hsimsock)->sockets[i]) {\
+      sock->linkNum = i;\
       break;\
     }\
   }\
@@ -27,7 +27,7 @@
 
 static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock);
 static QTEL_Status_t sockReadRecvData(QTEL_SocketClient_t *sock);
-static uint8_t isSockConnected(QTEL_SocketClient_t *sock);
+static uint8_t getSockState(QTEL_SocketClient_t *sock);
 static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock);
 
 
@@ -78,7 +78,8 @@ QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t *sock)
     QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
     if (sock->state == QTEL_SOCK_STATE_OPEN_PENDING) {
       sockOpen(sock);
-    } else {
+    }
+    else {
       sock->state = QTEL_SOCK_STATE_CLOSE;
       sock->tick.reconnDelay = qtelPtr->getTick();
       if (sock->listeners.onClosed) sock->listeners.onClosed();
@@ -109,10 +110,14 @@ QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t *sock)
     break;
 
   case QTEL_SOCK_STATE_CLOSE:
-    if (sock->tick.reconnDelay == 0) {
-
-    }
+    if (sock->tick.reconnDelay == 0) { }
     else if (QTEL_IsTimeout(qtelPtr, sock->tick.reconnDelay, 2000)) {
+      if (qtelPtr->socketManager.state != QTEL_SOCKH_STATE_PDP_ACTIVE) {
+        QTEL_SockManager_PDP_Activate(&qtelPtr->socketManager);
+        sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
+        break;
+      }
+
       sockOpen(sock);
     }
     break;
@@ -145,7 +150,7 @@ QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t *sock,
   sock->socketManager = &qtelPtr->socketManager;
 
   if (sock->config.autoReconnect) {
-    Get_Available_LinkNum(sock->socketManager, &(sock->linkNum));
+    Get_Available_LinkNum(sock->socketManager, sock);
     if (sock->linkNum < 0) return QTEL_ERROR;
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
@@ -169,11 +174,16 @@ QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t *sock)
   AT_Data_t paramData[4] = {
       AT_Number(sock->linkNum),
   };
-
-  if (AT_Command(&qtelPtr->atCmd, "+CIPCLOSE", 1, paramData, 0, 0) != AT_OK) {
-    return QTEL_ERROR;
+  if (getSockState(sock) != 0) {
+    return sockClose(sock);
   }
-  return QTEL_ERROR;
+  else {
+    sock->state = QTEL_SOCK_STATE_CLOSE;
+    sock->tick.reconnDelay = qtelPtr->getTick();
+    QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
+    qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
+    return QTEL_OK;
+  }
 }
 
 
@@ -203,22 +213,24 @@ uint16_t QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint
 static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
+  uint8_t sockState = 0;
 
   if (sock->linkNum == -1) {
-    Get_Available_LinkNum(sock->socketManager, &(sock->linkNum));
+    Get_Available_LinkNum(sock->socketManager, sock);
     if (sock->linkNum < 0) return QTEL_ERROR;
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
 
   AT_Data_t paramData[6] = {
-      AT_Number(qtelPtr->net.contextId),
+      AT_Number(sock->socketManager->contextId),
       AT_Number(sock->linkNum),
       AT_String("TCP"),
       AT_String(sock->host),
       AT_Number(sock->port),
   };
 
-  if (isSockConnected(sock)) {
+  sockState = getSockState(sock);
+  if (sockState != 0) {
     sockClose(sock);
     sock->state = QTEL_SOCK_STATE_OPEN_PENDING;
     return QTEL_ERROR;
@@ -254,7 +266,7 @@ static QTEL_Status_t sockReadRecvData(QTEL_SocketClient_t *sock)
 }
 
 
-static uint8_t isSockConnected(QTEL_SocketClient_t *sock)
+static uint8_t getSockState(QTEL_SocketClient_t *sock)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
@@ -279,10 +291,9 @@ static uint8_t isSockConnected(QTEL_SocketClient_t *sock)
 
   if (AT_Command(&qtelPtr->atCmd, "+QISTATE", 2, paramData, 7, respData) == AT_OK) {
     if (respData[0].value.number == sock->linkNum
-        && respData[6].value.number == qtelPtr->net.contextId
-        && respData[6].value.number != 0)
+        && respData[6].value.number == sock->socketManager->contextId)
     {
-      return 1;
+      return (uint8_t) respData[5].value.number;
     }
   }
 
@@ -301,7 +312,9 @@ static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
   if (AT_Command(&qtelPtr->atCmd, "+QICLOSE", 1, &paramData, 0, 0) != AT_OK) {
     return QTEL_ERROR;
   }
+
   sock->state = QTEL_SOCK_STATE_CLOSE;
+  sock->tick.reconnDelay = qtelPtr->getTick();
   QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
   qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   return QTEL_OK;
