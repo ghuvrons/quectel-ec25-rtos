@@ -56,6 +56,7 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
   uint8_t *simStatusStr = malloc(5);
   AT_Data_t *simStatus = malloc(sizeof(AT_Data_t));
   memset(simStatusStr, 0, 5);
+  memset(simStatus, 0, sizeof(AT_Data_t));
   AT_DataSetBuffer(simStatus, simStatusStr, 16);
   AT_On(&qtelPtr->atCmd, "+CPIN", qtelPtr, 1, simStatus, onSIMReady);
 
@@ -118,9 +119,6 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 
   for (;;) {
     if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_ALL, &notifEvent, timeout) == AT_OK) {
-      if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_READY)) {
-        if (qtelPtr->callbacks.onReady) qtelPtr->callbacks.onReady();
-      }
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_NEW_STATE)) {
         onNewState(qtelPtr);
       }
@@ -241,7 +239,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     status = AT_Command(&qtelPtr->atCmd, "+QURCCFG", 1, paramData, 2, respData);
     if (status != AT_OK ||
         respData[1].type != AT_STRING ||
-        strncmp(respData[1].value.string, "uart1", 5))
+        (strncmp(respData[1].value.string, "uart1", 5)) != 0)
     {
       AT_Command(&qtelPtr->atCmd, "+QURCCFG=\"urcport\",\"uart1\"", 0, 0, 0, 0);
       isNeedReset = 1;
@@ -268,6 +266,10 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     if (isNeedReset) QTEL_ResetSIM(qtelPtr);
 
     QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_SIMCARD);
+
+    if (qtelPtr->callbacks.onReady)
+      qtelPtr->callbacks.onReady();
+
     break;
 
   case QTEL_STATE_CHECK_SIMCARD:

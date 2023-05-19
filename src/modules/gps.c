@@ -161,7 +161,7 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
 
   switch (qtelGps->state) {
   case QTEL_GPS_STATE_NON_ACTIVE:
-    if (qtelPtr->net.state > QTEL_NET_STATE_CHECK_GPRS) {
+    if (qtelPtr->state >= QTEL_STATE_ACTIVE) {
       if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 2000)) {
         QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
       }
@@ -237,35 +237,72 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
   QTEL_Status_t status = QTEL_ERROR;
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
   AT_Data_t paramData[3];
+  uint8_t respstr[32];
+  AT_Data_t respData[3] = {
+      AT_Buffer(&respstr[0], 32),
+      AT_Number(0),
+      AT_Number(0),
+  };
 
   AT_DataSetString(&paramData[0], "gnssconfig");
   AT_DataSetNumber(&paramData[1], 1);
-  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
-
-  AT_DataSetString(&paramData[0], "plane");
-  AT_DataSetNumber(&paramData[1], qtelGps->config.planeMode);
-  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
+      respData[1].value.number != 1)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  }
 
   AT_DataSetString(&paramData[0], "suplver");
   AT_DataSetNumber(&paramData[1], qtelGps->config.supl.version);
-  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
+      respData[1].value.number != qtelGps->config.supl.version)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  }
+
+  AT_DataSetString(&paramData[0], "plane");
+  AT_DataSetNumber(&paramData[1], qtelGps->config.planeMode);
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
+      respData[1].value.number != qtelGps->config.planeMode)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  };
 
   AT_DataSetString(&paramData[0], "agpsposmode");
   AT_DataSetNumber(&paramData[1], qtelGps->config.AGPS_Mode);
-  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
+      respData[1].value.number != qtelGps->config.AGPS_Mode)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  }
 
   AT_DataSetString(&paramData[0], "agnssprotocol");
   AT_DataSetNumber(&paramData[1], qtelGps->config.AGPS_Protocols);
   AT_DataSetNumber(&paramData[2], qtelGps->config.AGLONASS_Protocols);
-  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 3, paramData, 0, 0) != AT_OK) goto endCmd;
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 3, respData) != AT_OK ||
+      respData[1].value.number != qtelGps->config.AGPS_Protocols ||
+      respData[2].value.number != qtelGps->config.AGLONASS_Protocols)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 3, paramData, 0, 0) != AT_OK) goto endCmd;
+  }
 
   AT_DataSetString(&paramData[0], "fixfreq");
   AT_DataSetNumber(&paramData[1], qtelGps->config.outputRate);
-  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
+      respData[1].value.number != qtelGps->config.outputRate)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  }
 
   if (qtelGps->config.supl.server != 0) {
     AT_DataSetString(&paramData[0], qtelGps->config.supl.server);
-    if (AT_Command(&qtelPtr->atCmd, "+QGPSSUPLURL", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+    if (AT_Check(&qtelPtr->atCmd, "+QGPSSUPLURL", 1, respData) != AT_OK ||
+        !(respData[0].type == AT_STRING &&
+          strncmp(respData[0].value.string, qtelGps->config.supl.server, 32) == 0
+        ))
+    {
+      if (AT_Command(&qtelPtr->atCmd, "+QGPSSUPLURL", 1, paramData, 0, 0) != AT_OK) goto endCmd;
+    }
   }
 
   status = QTEL_OK;

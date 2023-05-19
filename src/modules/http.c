@@ -34,6 +34,7 @@ QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
   qtelhttp->contextId = 2;
 
   AT_Data_t *httpActionResp = malloc(sizeof(AT_Data_t)*3);
+  memset(httpActionResp, 0, sizeof(AT_Data_t)*3);
   AT_DataSetNumber(httpActionResp, 0);
   AT_DataSetNumber(httpActionResp+1, 0);
   AT_DataSetNumber(httpActionResp+2, 0);

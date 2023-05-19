@@ -31,6 +31,7 @@ QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *qtelNTP, void *qtelPtr)
   qtelNTP->config.retryInterval = 5000;
 
   AT_Data_t *ntpResp = malloc(sizeof(AT_Data_t));
+  memset(ntpResp, 0, sizeof(AT_Data_t));
   AT_On(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "+QNTP", (QTEL_HandlerTypeDef*) qtelPtr, 1, ntpResp, onSynced);
 
   return QTEL_OK;

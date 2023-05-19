@@ -29,11 +29,13 @@ QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef *sockMgr, void *q
   sockMgr->contextId = QTEL_CID_SOCKET;
 
   AT_Data_t *socketOpenResp = malloc(sizeof(AT_Data_t)*2);
+  memset(socketOpenResp, 0, sizeof(AT_Data_t)*2);
   AT_On(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "+QIOPEN",
         (QTEL_HandlerTypeDef*) qtelPtr, 2, socketOpenResp, onSocketOpened);
 
   uint8_t *sockEvtStr = malloc(16);
   AT_Data_t *socketEventResp = malloc(sizeof(AT_Data_t)*2);
+  memset(socketEventResp, 0, sizeof(AT_Data_t)*2);
   AT_DataSetBuffer(socketEventResp, sockEvtStr, 16);
   AT_On(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "+QIURC",
         (QTEL_HandlerTypeDef*) qtelPtr, 2, socketEventResp, onSocketEvent);
