@@ -70,6 +70,11 @@ typedef struct QTEL_HandlerTypeDef {
   uint8_t network_status;
   uint8_t GPRS_network_status;
 
+  struct {
+    void (*onReady)(void);
+    void (*onActive)(void);
+  } callbacks;
+
   #if QTEL_EN_FEATURE_NET
   QTEL_NET_HandlerTypeDef net;
   #endif /* QTEL_EN_FEATURE_NET */

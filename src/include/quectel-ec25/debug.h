@@ -16,7 +16,7 @@
 #include <stdio.h>
 
 
-#define QTEL_Debug(...) {QTEL_Printf("SIM: ");QTEL_Println(__VA_ARGS__);}
+#define QTEL_Debug(...) {QTEL_Printf("QUECTEL: ");QTEL_Println(__VA_ARGS__);}
 
 void QTEL_Printf(const char *format, ...);
 void QTEL_Println(const char *format, ...);
