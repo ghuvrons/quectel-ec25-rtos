@@ -453,7 +453,7 @@ static void onSIMReady(void *app, AT_Data_t *data)
 {
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
-  if (strncmp(data->value.string, "READY", 5)) {
+  if (strncmp(data->value.string, "READY", 5) == 0) {
     QTEL_Debug("SIM Ready...");
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_SIM_READY);
     if (qtelPtr->state == QTEL_STATE_CHECK_SIMCARD) {
@@ -464,6 +464,9 @@ static void onSIMReady(void *app, AT_Data_t *data)
       }
       QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_NETWORK);
     }
+  }
+  else {
+    QTEL_Debug("SIM Not Ready");
   }
 
   memset(data->ptr, 0, 5);
