@@ -27,11 +27,17 @@ QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef *sockMgr, void *q
   sockMgr->qtel = qtelPtr;
   sockMgr->state = QTEL_SOCKH_STATE_NON_ACTIVE;
   sockMgr->contextId = QTEL_CID_SOCKET;
+  sockMgr->sslcontextId = QTEL_SSLID_SOCKET;
 
   AT_Data_t *socketOpenResp = malloc(sizeof(AT_Data_t)*2);
   memset(socketOpenResp, 0, sizeof(AT_Data_t)*2);
   AT_On(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "+QIOPEN",
         (QTEL_HandlerTypeDef*) qtelPtr, 2, socketOpenResp, onSocketOpened);
+
+  AT_Data_t *socketOpenRespSSL = malloc(sizeof(AT_Data_t)*2);
+  memset(socketOpenRespSSL, 0, sizeof(AT_Data_t) * 2);
+  AT_On(&((QTEL_HandlerTypeDef *)qtelPtr)->atCmd, "+QSSLOPEN",
+        (QTEL_HandlerTypeDef *)qtelPtr, 2, socketOpenRespSSL, onSocketOpened);
 
   uint8_t *sockEvtStr = malloc(16);
   AT_Data_t *socketEventResp = malloc(sizeof(AT_Data_t)*2);
@@ -39,6 +45,13 @@ QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef *sockMgr, void *q
   AT_DataSetBuffer(socketEventResp, sockEvtStr, 16);
   AT_On(&((QTEL_HandlerTypeDef*)qtelPtr)->atCmd, "+QIURC",
         (QTEL_HandlerTypeDef*) qtelPtr, 2, socketEventResp, onSocketEvent);
+
+  uint8_t *sockEvtStrSSL = malloc(16);
+  AT_Data_t *socketEventRespSSL = malloc(sizeof(AT_Data_t)*2);
+  memset(socketEventRespSSL, 0, sizeof(AT_Data_t) * 2);
+  AT_DataSetBuffer(socketEventRespSSL, sockEvtStrSSL, 16);
+  AT_On(&((QTEL_HandlerTypeDef *)qtelPtr)->atCmd, "+QSSLURC",
+        (QTEL_HandlerTypeDef *)qtelPtr, 2, socketEventRespSSL, onSocketEvent);
 
   return QTEL_OK;
 }

@@ -28,6 +28,12 @@
 #define QTEL_CID_NTP    4
 #endif
 
+/* SSL Context ID */
+
+#ifndef QTEL_SSLID_SOCKET
+#define QTEL_SSLID_SOCKET 1
+#endif
+
 
 #ifndef QTEL_EN_FEATURE_GPS
 #define QTEL_EN_FEATURE_GPS 0

@@ -16,7 +16,7 @@ static void str2Time(QTEL_Datetime_t*, const char *);
 QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
 {
   QTEL_Status_t status = QTEL_ERROR;
-
+  
   if (AT_Command(&qtelPtr->atCmd, "", 0, 0, 0, 0) == AT_OK) {
     status = QTEL_OK;
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_ACTIVE);
@@ -46,7 +46,7 @@ QTEL_Status_t QTEL_CheckSIMCard(QTEL_HandlerTypeDef *qtelPtr)
   QTEL_Status_t status = QTEL_ERROR;
   uint8_t respstr[6];
   AT_Data_t respData[1] = {
-    AT_Buffer(respstr, sizeof(respstr)),
+      AT_Buffer(respstr, sizeof(respstr)),
   };
 
   memset(respstr, 0, 6);
@@ -68,10 +68,10 @@ QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
   uint8_t ci[2];  // Cell Identify
 
   AT_Data_t respData[4] = {
-    AT_Number(0),
-    AT_Number(0),
-    AT_Hex(lac),
-    AT_Hex(ci),
+      AT_Number(0),
+      AT_Number(0),
+      AT_Hex(lac),
+      AT_Hex(ci),
   };
 
   memset(lac, 0, 2);
@@ -105,10 +105,10 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
   uint8_t ci[2];  // Cell Identify
 
   AT_Data_t respData[4] = {
-    AT_Number(0),
-    AT_Number(0),
-    AT_Hex(lac),
-    AT_Hex(ci),
+      AT_Number(0),
+      AT_Number(0),
+      AT_Hex(lac),
+      AT_Hex(ci),
   };
 
   memset(lac, 0, 2);
@@ -144,10 +144,10 @@ QTEL_Status_t QTEL_ReqisterNetwork(QTEL_HandlerTypeDef *qtelPtr)
   };
   uint8_t respstr[32];
   AT_Data_t respData[4] = {
-    AT_Number(0),
-    AT_Number(0),
-    AT_Buffer(respstr, 32),
-    AT_Number(0),
+      AT_Number(0),
+      AT_Number(0),
+      AT_Buffer(respstr, 32),
+      AT_Number(0),
   };
 
   memset(respstr, 0, 32);
@@ -175,11 +175,11 @@ QTEL_Status_t QTEL_GetTime(QTEL_HandlerTypeDef *qtelPtr, QTEL_Datetime_t *dt)
 {
   uint8_t respstr[24];
   AT_Data_t respData[1] = {
-    AT_Buffer(respstr, 24),
+      AT_Buffer(respstr, 24),
   };
   memset(respstr, 0, 24);
 
-  if (AT_Check(&qtelPtr->atCmd, "+CCLK",  1, respData) != AT_OK) return QTEL_ERROR;
+  if (AT_Check(&qtelPtr->atCmd, "+CCLK", 1, respData) != AT_OK) return QTEL_ERROR;
 
   str2Time(dt, (char*)&respstr[0]);
 
@@ -190,8 +190,8 @@ QTEL_Status_t QTEL_GetTime(QTEL_HandlerTypeDef *qtelPtr, QTEL_Datetime_t *dt)
 QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef *qtelPtr)
 {
   AT_Data_t respData[2] = {
-    AT_Number(0),
-    AT_Number(0),
+      AT_Number(0),
+      AT_Number(0),
   };
 
   if (AT_Command(&qtelPtr->atCmd, "+CSQ", 0, 0, 2, respData) != AT_OK) return QTEL_ERROR;

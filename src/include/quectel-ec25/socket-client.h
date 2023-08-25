@@ -58,6 +58,8 @@ typedef struct QTEL_SocketClient_t {
   // server
   char     host[64];
   uint16_t port;
+  uint8_t  isSSL;
+
 
   void *buffer;
 
