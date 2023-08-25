@@ -15,7 +15,6 @@ static void str2Time(QTEL_Datetime_t *, const char *);
 QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
 {
   QTEL_Status_t status = QTEL_ERROR;
-
   if (AT_Command(&qtelPtr->atCmd, "", 0, 0, 0, 0) == AT_OK)
   {
     status = QTEL_OK;
