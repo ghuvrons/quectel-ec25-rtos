@@ -40,7 +40,7 @@ typedef struct QTEL_HandlerTypeDef {
   uint8_t             state;
   uint8_t             events;
   uint8_t             errors;
-  uint8_t             signal;
+  uint8_t             signal; // 0 - 100
 
   struct {
     uint32_t init;

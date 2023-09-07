@@ -195,7 +195,15 @@ QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef *qtelPtr)
   };
 
   if (AT_Command(&qtelPtr->atCmd, "+CSQ", 0, 0, 2, respData) != AT_OK) return QTEL_ERROR;
-  qtelPtr->signal = respData[1].value.number;
+  if (respData[0].value.number >= 0 && respData[0].value.number < 31) {
+    qtelPtr->signal = (uint8_t)(respData[0].value.number * 10 / 3);
+  }
+  else if (respData[0].value.number >= 100 && respData[0].value.number < 190) {
+    qtelPtr->signal = (uint8_t)((respData[0].value.number - 100) * 10 / 9);
+  }
+  else {
+    qtelPtr->signal = 0;
+  }
 
   return QTEL_OK;
 }
