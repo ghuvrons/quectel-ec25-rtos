@@ -75,6 +75,18 @@
 #define QTEL_DEBUG 1
 #endif
 
+#ifndef QTEL_OPERATOR_BUFFER_SIZE
+#define QTEL_OPERATOR_BUFFER_SIZE  32
+#endif
+
+#ifndef QTEL_SIM_SN_BUFFER_SIZE
+#define QTEL_SIM_SN_BUFFER_SIZE  32
+#endif
+
+#ifndef QTEL_SIM_IMEI_BUFFER_SIZE
+#define QTEL_SIM_IMEI_BUFFER_SIZE  32
+#endif
+
 #ifndef QTEL_CMD_BUFFER_SIZE
 #define QTEL_CMD_BUFFER_SIZE  256
 #endif

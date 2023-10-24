@@ -58,9 +58,10 @@ void          QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef*, char *APN, char *user,
 
 // Context
 
-QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
-QTEL_Status_t QTEL_NET_ActivateContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
-QTEL_Status_t QTEL_NET_DeactivateContext(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
+QTEL_Status_t QTEL_NET_ConfigurePDP(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
+QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef*, uint8_t contextId, uint8_t *isActive);
+QTEL_Status_t QTEL_NET_ActivatePDP(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
+QTEL_Status_t QTEL_NET_DeactivatePDP(QTEL_NET_HandlerTypeDef*, uint8_t contextId);
 
 // Data Counter
 

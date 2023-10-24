@@ -29,6 +29,18 @@ QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
 }
 
 
+QTEL_Status_t QTEL_GetFirmwareVersion(QTEL_HandlerTypeDef *qtelPtr)
+{
+  QTEL_Status_t status = QTEL_ERROR;
+
+  if (AT_Command(&qtelPtr->atCmd, "AT+CGMR", 0, 0, 0, 0) == AT_OK) {
+    status = QTEL_OK;
+  }
+
+  return status;
+}
+
+
 QTEL_Status_t QTEL_Echo(QTEL_HandlerTypeDef *qtelPtr, uint8_t onoff)
 {
   QTEL_Status_t status = QTEL_ERROR;
@@ -63,7 +75,7 @@ QTEL_Status_t QTEL_CheckSIMCard(QTEL_HandlerTypeDef *qtelPtr)
 
 QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
 {
-  QTEL_Status_t status = QTEL_ERROR;
+  AT_Status_t status;
   uint8_t lac[2]; // location area code
   uint8_t ci[2];  // Cell Identify
 
@@ -77,12 +89,13 @@ QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
   memset(lac, 0, 2);
   memset(ci, 0, 2);
 
-  if (AT_Check(&qtelPtr->atCmd, "+CREG", 4, respData) != AT_OK) return status;
+  status = AT_Check(&qtelPtr->atCmd, "+CREG", 4, respData);
+  if (status != AT_OK) return (QTEL_Status_t) status;
+
   qtelPtr->network_status = (uint8_t) respData[1].value.number;
 
   // check response
   if (qtelPtr->network_status == 1 || qtelPtr->network_status == 5) {
-    status = QTEL_OK;
     if (qtelPtr->state <= QTEL_STATE_CHECK_NETWORK) {
       QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
     }
@@ -94,13 +107,13 @@ QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
   }
 
-  return status;
+  return QTEL_OK;
 }
 
 
 QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
 {
-  QTEL_Status_t status = QTEL_ERROR;
+  AT_Status_t status;
   uint8_t lac[2]; // location area code
   uint8_t ci[2];  // Cell Identify
 
@@ -114,12 +127,13 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
   memset(lac, 0, 2);
   memset(ci, 0, 2);
 
-  if (AT_Check(&qtelPtr->atCmd, "+CGREG", 4, respData) != AT_OK) return status;
+  status = AT_Check(&qtelPtr->atCmd, "+CGREG", 4, respData);
+  if (status != AT_OK) return (QTEL_Status_t) status;
+
   qtelPtr->GPRS_network_status = (uint8_t) respData[1].value.number;
 
   // check response
   if (qtelPtr->GPRS_network_status == 1 || qtelPtr->GPRS_network_status == 5) {
-    status = QTEL_OK;
     if (qtelPtr->state <= QTEL_STATE_CHECK_NETWORK) {
       QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
     }
@@ -131,7 +145,7 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
   }
 
-  return status;
+  return QTEL_OK;
 }
 
 
@@ -173,13 +187,15 @@ endCmd:
 
 QTEL_Status_t QTEL_GetTime(QTEL_HandlerTypeDef *qtelPtr, QTEL_Datetime_t *dt)
 {
+  AT_Status_t status;
   uint8_t respstr[24];
   AT_Data_t respData[1] = {
       AT_Buffer(respstr, 24),
   };
   memset(respstr, 0, 24);
 
-  if (AT_Check(&qtelPtr->atCmd, "+CCLK", 1, respData) != AT_OK) return QTEL_ERROR;
+  status = AT_Check(&qtelPtr->atCmd, "+CCLK", 1, respData);
+  if (status != AT_OK) return (QTEL_Status_t) status;
 
   str2Time(dt, (char*)&respstr[0]);
 
@@ -189,12 +205,16 @@ QTEL_Status_t QTEL_GetTime(QTEL_HandlerTypeDef *qtelPtr, QTEL_Datetime_t *dt)
 
 QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef *qtelPtr)
 {
+  AT_Status_t status;
   AT_Data_t respData[2] = {
       AT_Number(0),
       AT_Number(0),
   };
 
-  if (AT_Command(&qtelPtr->atCmd, "+CSQ", 0, 0, 2, respData) != AT_OK) return QTEL_ERROR;
+  status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+CSQ", 0, 0, 2, respData, 10000);
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
+  }
   if (respData[0].value.number >= 0 && respData[0].value.number < 31) {
     qtelPtr->signal = (uint8_t)(respData[0].value.number * 10 / 3);
   }
@@ -208,6 +228,63 @@ QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef *qtelPtr)
   return QTEL_OK;
 }
 
+
+QTEL_Status_t QTEL_GetOperator(QTEL_HandlerTypeDef *qtelPtr)
+{
+  AT_Status_t status;
+  AT_Data_t respData[3] = {
+      AT_Number(0),
+      AT_Number(0),
+      AT_Buffer((uint8_t*)qtelPtr->operator, QTEL_OPERATOR_BUFFER_SIZE),
+  };
+
+  status = AT_Check(&qtelPtr->atCmd, "+COPS", 3, respData);
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
+  }
+
+  return QTEL_OK;
+}
+
+
+QTEL_Status_t QTEL_GetSIMInfo(QTEL_HandlerTypeDef *qtelPtr)
+{
+  AT_Status_t status;
+  AT_Data_t paramData[1] = {
+    AT_Number(0),
+  };
+  AT_Data_t respDataSN[1] = {
+      AT_Buffer((uint8_t *)qtelPtr->SIM_SN, QTEL_SIM_SN_BUFFER_SIZE),
+  };
+  AT_Data_t respDataIMEI[1] = {
+      AT_Buffer((uint8_t *)qtelPtr->SIM_IMEI, QTEL_SIM_IMEI_BUFFER_SIZE),
+  };
+
+  AT_DataSetNumber(&paramData[0], 0);
+  status = AT_Command(&qtelPtr->atCmd, "+CGSN", 1, paramData, 1, respDataSN);
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
+  }
+
+  AT_DataSetNumber(&paramData[0], 1);
+  status = AT_Command(&qtelPtr->atCmd, "+CGSN", 1, paramData, 1, respDataIMEI);
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
+  }
+
+  return QTEL_OK;
+}
+
+// AT+QENG="servingcell"
+
+QTEL_Status_t QTEL_CheckQENG(QTEL_HandlerTypeDef *qtelPtr)
+{
+  AT_Data_t paramData[1] = {
+    AT_String("servingcell"),
+  };
+
+  return AT_Command(&qtelPtr->atCmd, "+QENG", 1, paramData, 0, 0);
+}
 
 static void str2Time(QTEL_Datetime_t *dt, const char *str)
 {

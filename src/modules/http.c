@@ -68,12 +68,12 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
 
   if (qtelhttp->state == QTEL_HTTP_STATE_NON_ACTIVE) {
     qtelhttp->state = QTEL_HTTP_STATE_ACTIVATING;
-    if (QTEL_NET_ConfigureContext(&qtelPtr->net, qtelhttp->contextId) != QTEL_OK)
+    if (QTEL_NET_ConfigurePDP(&qtelPtr->net, qtelhttp->contextId) != QTEL_OK)
     {
       qtelhttp->state = QTEL_HTTP_STATE_NON_ACTIVE;
       return QTEL_ERROR;
     }
-    if (QTEL_NET_ActivateContext(&qtelPtr->net, qtelhttp->contextId) != QTEL_OK)
+    if (QTEL_NET_ActivatePDP(&qtelPtr->net, qtelhttp->contextId) != QTEL_OK)
     {
       qtelhttp->state = QTEL_HTTP_STATE_NON_ACTIVE;
       return QTEL_ERROR;

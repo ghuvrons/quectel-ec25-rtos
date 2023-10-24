@@ -45,7 +45,7 @@ void QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef *qtelNet, char *APN, char *user, 
 }
 
 
-QTEL_Status_t QTEL_NET_ConfigureContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
+QTEL_Status_t QTEL_NET_ConfigurePDP(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
 {
   if (contextId == 0 || contextId > 16) return QTEL_ERROR;
   if (QTEL_BITS_IS_ALL(qtelNet->isCtxConfigured, (1 << (contextId-1)))) {
@@ -92,100 +92,125 @@ endCmd:
 }
 
 
-QTEL_Status_t QTEL_NET_ActivateContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
+QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId, uint8_t *isActive)
 {
   if (contextId > 16) return QTEL_ERROR;
 
-  QTEL_Status_t status          = QTEL_ERROR;
+  AT_Status_t status;
   QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
-  uint8_t commandSent = 0;
   AT_Data_t respData[16][3];
-  AT_Data_t paramData[1] = {
-    AT_Number(contextId),
-  };
 
-checkContext:
   memset(respData, 0, sizeof(respData));
 
   // check
-  if (AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]) != AT_OK) return QTEL_ERROR;
-  for (uint8_t i = 0; i < 16; i++) {
-    if (respData[i][0].type == AT_NUMBER &&
-        respData[i][0].value.number == contextId)
-    {
-      if (respData[i][1].value.number == 1)
-      {
-        status = QTEL_OK;
-        goto endCmd;
-      }
-      break;
-    }
+  status = AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]);
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
   }
 
-  // command
-  if (commandSent == 1 ||
-      AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIACT",
-                            1, paramData, 0, 0, 150000) != AT_OK)
-  {
-    if (AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
-                              1, paramData, 0, 0, 40000) != AT_OK)
-    {
-      // [TODO]: Reset modem
-    }
-
-    goto endCmd;
-  }
-  commandSent = 1;
-  goto checkContext;
-
-endCmd:
-  return status;
-}
-
-
-QTEL_Status_t QTEL_NET_DeactivateContext(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
-{
-  if (contextId > 16) return QTEL_ERROR;
-
-  QTEL_Status_t status          = QTEL_ERROR;
-  QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
-  AT_Data_t respData[16][3];
-  AT_Data_t paramData[1] = {
-    AT_Number(contextId),
-  };
-
-checkContext:
-  memset(respData, 0, sizeof(respData));
-
-  // check
-  if (AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]) != AT_OK) return QTEL_ERROR;
+  *isActive = 0;
+  QTEL_BITS_UNSET(qtelNet->isCtxActived, (1 << (contextId-1)));
   for (uint8_t i = 0; i < 16; i++) {
     if (respData[i][0].type == AT_NUMBER &&
         respData[i][0].value.number == contextId)
     {
       if (respData[i][1].value.number == 1) {
-        goto execCmd;
+        *isActive = 1;
+        QTEL_BITS_SET(qtelNet->isCtxActived, (1 << (contextId-1)));
       }
       break;
     }
   }
+  return QTEL_OK;
+}
 
-  status = QTEL_OK;
-  QTEL_BITS_UNSET(qtelNet->isCtxActived, (1 << (contextId-1)));
-  goto endCmd;
+
+QTEL_Status_t QTEL_NET_ActivatePDP(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
+{
+  if (contextId > 16) return QTEL_ERROR;
+
+  AT_Status_t atstatus;
+  QTEL_Status_t status          = QTEL_ERROR;
+  QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
+  uint8_t commandSent = 0;
+  uint8_t isActive = 0;
+  AT_Data_t paramData[1] = {
+    AT_Number(contextId),
+  };
+
+  if (qtelPtr->net.APN.APN != NULL) {
+    QTEL_NET_ConfigurePDP(qtelNet, contextId);
+  }
+
+checkContext:
+
+  // check
+  status = QTEL_NET_IsPDPActive(qtelNet, contextId, &isActive);
+  if (status != QTEL_OK) return status;
+  if (isActive) return QTEL_OK;
+
+  commandSent++;
+  if (commandSent > 3) {
+    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    return QTEL_ERROR;
+  }
 
   // command
-execCmd:
-  if (AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
-                            1, paramData, 0, 0, 40000) != AT_OK)
-  {
-    // [TODO]: Reset modem
-    goto endCmd;
+  atstatus = AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIACT",
+                                   1, paramData, 0, 0, 150000);
+
+  if (atstatus == AT_OK)
+    goto checkContext;
+
+  if (atstatus == AT_RESPONSE_TIMEOUT) {
+    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    return QTEL_ERROR;
+  }
+
+  atstatus = AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
+                                   1, paramData, 0, 0, 40000);
+
+  if (atstatus == AT_RESPONSE_TIMEOUT) {
+    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    return QTEL_ERROR;
+  }
+
+  goto checkContext;
+}
+
+
+QTEL_Status_t QTEL_NET_DeactivatePDP(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
+{
+  if (contextId > 16) return QTEL_ERROR;
+
+  AT_Status_t atstatus;
+  QTEL_Status_t status          = QTEL_ERROR;
+  QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
+  uint8_t commandSent = 0;
+  uint8_t isActive = 0;
+  AT_Data_t paramData[1] = {
+    AT_Number(contextId),
+  };
+
+checkContext:
+  status = QTEL_NET_IsPDPActive(qtelNet, contextId, &isActive);
+  if (status != QTEL_OK) return status;
+  if (!isActive) return QTEL_OK;
+
+  commandSent++;
+  if (commandSent > 3) {
+    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    return QTEL_ERROR;
+  }
+
+  // command
+  atstatus = AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
+                                   1, paramData, 0, 0, 40000);
+  if (atstatus == AT_RESPONSE_TIMEOUT) {
+    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    return QTEL_ERROR;
   }
   goto checkContext;
-
-endCmd:
-  return status;
 }
 
 

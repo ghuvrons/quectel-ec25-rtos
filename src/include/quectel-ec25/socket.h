@@ -19,9 +19,9 @@
 
 enum {
   QTEL_SOCKH_STATE_NON_ACTIVE,
+  QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING,   // waiting Quectel activated
   QTEL_SOCKH_STATE_PDP_ACTIVATING,
   QTEL_SOCKH_STATE_PDP_ACTIVE,
-  QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING,   // waiting Quectel activated
 };
 
 typedef struct QTEL_Socket_HandlerTypeDef {
@@ -35,11 +35,12 @@ typedef struct QTEL_Socket_HandlerTypeDef {
 } QTEL_Socket_HandlerTypeDef;
 
 QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef*, void *qtelPtr);
-void          QTEL_SockManager_OnQTELActive(QTEL_Socket_HandlerTypeDef*);
 void          QTEL_SockManager_SetState(QTEL_Socket_HandlerTypeDef *, uint8_t newState);
 void          QTEL_SockManager_OnNewState(QTEL_Socket_HandlerTypeDef*);
+void          QTEL_SockManager_OnReboot(QTEL_Socket_HandlerTypeDef*);
 void          QTEL_SockManager_CheckSocketsEvents(QTEL_Socket_HandlerTypeDef*);
-void          QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef*);
+QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef*);
+QTEL_Status_t QTEL_SockManager_PDP_Deactivate(QTEL_Socket_HandlerTypeDef *sockMgr);
 void          QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef*);
 
 

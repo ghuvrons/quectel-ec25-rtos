@@ -6,7 +6,9 @@
 typedef enum {
   QTEL_OK,
   QTEL_ERROR,
-  QTEL_TIMEOUT
+  QTEL_TIMEOUT,
+  QTEL_RESPONSE_TIMEOUT,
+  QTEL_ERROR_PENDING,
 } QTEL_Status_t;
 
 typedef struct {

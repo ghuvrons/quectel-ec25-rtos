@@ -129,6 +129,11 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
         }
 #endif /* QTEL_EN_FEATURE_GPS */
 
+#if QTEL_EN_FEATURE_SOCKET
+        if (qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) {
+          QTEL_SockManager_SetState(&qtelPtr->socketManager, QTEL_SOCKH_STATE_PDP_ACTIVATING);
+        }
+#endif /* QTEL_EN_FEATURE_SOCKET */
         if (qtelPtr->callbacks.onActive) qtelPtr->callbacks.onActive();
       }
 
@@ -208,7 +213,7 @@ QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef *qtelPtr)
 }
 
 
-void QTEL_SetState(QTEL_HandlerTypeDef *qtelPtr, uint8_t newState)
+void QTEL_SetState(QTEL_HandlerTypeDef *qtelPtr, QTEL_State_t newState)
 {
   qtelPtr->state = newState;
   qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_NEW_STATE);
@@ -225,8 +230,25 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   qtelPtr->tick.changedState = qtelPtr->getTick();
 
   switch (qtelPtr->state) {
+  case QTEL_STATE_REBOOT:
+
+#if QTEL_EN_FEATURE_SOCKET
+    QTEL_SockManager_OnReboot(&qtelPtr->socketManager);
+#endif /* QTEL_EN_FEATURE_SOCKET */
+
+    if (qtelPtr->resetPower != 0) {
+      while (qtelPtr->resetPower() != QTEL_OK) {
+        qtelPtr->delay(1);
+      }
+    }
+    QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_AT);
+    break;
+
   case QTEL_STATE_CONFIGURATION:
     isNeedReset = 0;
+
+    // Get firmware
+    // QTEL_GetFirmwareVersion(qtelPtr);
 
     // disable echo
     QTEL_Echo(qtelPtr, 0);
@@ -275,6 +297,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   case QTEL_STATE_CHECK_SIMCARD:
     if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_SIM_READY))
     {
+      QTEL_GetSIMInfo(qtelPtr);
       QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_NETWORK);
     }
     else
@@ -302,7 +325,10 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
   case QTEL_STATE_ACTIVE:
     qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_ACTIVED);
-    QTEL_Debug("Actived");
+    QTEL_GetOperator(qtelPtr);
+    QTEL_CheckQENG(qtelPtr);
+    QTEL_Debug("operator: %s", qtelPtr->operator);
+    QTEL_Debug("Active");
     break;
 
   default: break;
@@ -379,7 +405,9 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
   case QTEL_STATE_ACTIVE:
     if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.checksignal, 10000)) {
       qtelPtr->tick.checksignal = qtelPtr->getTick();
-      QTEL_CheckSugnal(qtelPtr);
+      if (QTEL_CheckSugnal(qtelPtr) == QTEL_RESPONSE_TIMEOUT) {
+        QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+      }
     }
     break;
 
@@ -390,6 +418,7 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
 static void checkSIM(QTEL_HandlerTypeDef *qtelPtr) {
   QTEL_Debug("Checking SIM....");
   if (QTEL_CheckSIMCard(qtelPtr) == QTEL_OK) {
+    QTEL_GetSIMInfo(qtelPtr);
     if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
         QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED))
     {
@@ -408,32 +437,52 @@ static void checkSIM(QTEL_HandlerTypeDef *qtelPtr) {
 static void checkNetwork(QTEL_HandlerTypeDef *qtelPtr)
 {
   if (QTEL_CheckNetwork(qtelPtr) != QTEL_OK) {
-    if (qtelPtr->network_status == 0) {
-      QTEL_ReqisterNetwork(qtelPtr);
-    }
-    else if (qtelPtr->network_status == 2) {
-      QTEL_Debug("Searching network....");
-    }
+    // TODO handle error
     return;
   }
 
-  QTEL_Debug("Cellular network registered", (qtelPtr->network_status == 5)? " (roaming)":"");
+  switch (qtelPtr->network_status)
+  {
+  case 1:
+  case 5:
+    QTEL_Debug("Cellular network registered", (qtelPtr->network_status == 5)? " (roaming)":"");
+    break;
+  
+  case 0:
+    QTEL_ReqisterNetwork(qtelPtr);
+    break;
 
+  case 2:
+    QTEL_Debug("Searching network....");
+    break;
+
+  default:
+    break;
+  }
 }
 
 
 static void checkGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
 {
   if (QTEL_CheckGPRSNetwork(qtelPtr) != QTEL_OK) {
-    if (qtelPtr->GPRS_network_status == 0) {
-      QTEL_ReqisterNetwork(qtelPtr);
-    }
-    else if (qtelPtr->GPRS_network_status == 2) {
-      QTEL_Debug("Searching GPRS network....");
-    }
+    // TODO handle error
     return;
   }
-  QTEL_Debug("GPRS network registered", (qtelPtr->GPRS_network_status == 5)? " (roaming)":"");
+
+  switch (qtelPtr->GPRS_network_status)
+  {
+  case 1:
+  case 5:
+    QTEL_Debug("GPRS network registered", (qtelPtr->GPRS_network_status == 5)? " (roaming)":"");
+    break;
+
+  case 2:
+    QTEL_Debug("Searching GPRS network....");
+    break;
+
+  default:
+    break;
+  }
 }
 
 

@@ -21,15 +21,16 @@
 #define QTEL_STATUS_UART_WRITING    0x40
 #define QTEL_STATUS_CMD_RUNNING     0x80
 
-enum {
+typedef enum {
  QTEL_STATE_NON_ACTIVE,
+ QTEL_STATE_REBOOT,
  QTEL_STATE_READY,
  QTEL_STATE_CHECK_AT,
  QTEL_STATE_CONFIGURATION,
  QTEL_STATE_CHECK_SIMCARD,
  QTEL_STATE_CHECK_NETWORK,
  QTEL_STATE_ACTIVE,
-};
+} QTEL_State_t;
 
 
 typedef struct QTEL_HandlerTypeDef {
@@ -37,7 +38,7 @@ typedef struct QTEL_HandlerTypeDef {
   AT_HandlerTypeDef   atCmd;
 
   uint8_t             status;
-  uint8_t             state;
+  QTEL_State_t        state;
   uint8_t             events;
   uint8_t             errors;
   uint8_t             signal; // 0 - 100
@@ -69,6 +70,9 @@ typedef struct QTEL_HandlerTypeDef {
 
   uint8_t network_status;
   uint8_t GPRS_network_status;
+  char operator[QTEL_OPERATOR_BUFFER_SIZE+1];
+  char SIM_SN[QTEL_SIM_SN_BUFFER_SIZE+1];
+  char SIM_IMEI[QTEL_SIM_IMEI_BUFFER_SIZE+1];
 
   struct {
     void (*onReady)(void);

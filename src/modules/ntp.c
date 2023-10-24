@@ -89,11 +89,11 @@ QTEL_Status_t QTEL_NTP_Sync(QTEL_NTP_HandlerTypeDef *qtelNTP)
   AT_DataSetString(&paramData[0], "23/01/01,00:00:00+00");
   AT_Command(&qtelPtr->atCmd, "+CCLK", 1, paramData, 0, 0);
 
-  if (QTEL_NET_ConfigureContext(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
+  if (QTEL_NET_ConfigurePDP(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
   {
     return QTEL_ERROR;
   }
-  if (QTEL_NET_ActivateContext(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
+  if (QTEL_NET_ActivatePDP(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
   {
     return QTEL_ERROR;
   }
@@ -117,7 +117,7 @@ QTEL_Status_t QTEL_NTP_OnSyncingFinish(QTEL_NTP_HandlerTypeDef *qtelNTP)
   QTEL_Datetime_t dt;
 
   QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCING);
-  if (QTEL_NET_DeactivateContext(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
+  if (QTEL_NET_DeactivatePDP(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
   {
     return QTEL_ERROR;
   }

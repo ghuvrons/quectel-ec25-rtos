@@ -19,17 +19,19 @@
 #define QTEL_SOCK_UDP    0
 #define QTEL_SOCK_TCPIP  1
 
-#define QTEL_SOCK_EVENT_ON_OPENED              0x01
-#define QTEL_SOCK_EVENT_ON_OPENING_ERROR       0x02
-#define QTEL_SOCK_EVENT_ON_RECEIVED            0x04
-#define QTEL_SOCK_EVENT_ON_CLOSED              0x08
-#define QTEL_SOCK_EVENT_ON_RECV_DATA_AVAILABLE 0x10
+#define QTEL_SOCK_EVENT_ON_OPENING             0x01
+#define QTEL_SOCK_EVENT_ON_OPENED              0x02
+#define QTEL_SOCK_EVENT_ON_OPENING_ERROR       0x04
+#define QTEL_SOCK_EVENT_ON_RECEIVED            0x08
+#define QTEL_SOCK_EVENT_ON_CLOSING             0x10
+#define QTEL_SOCK_EVENT_ON_CLOSED              0x20
+#define QTEL_SOCK_EVENT_ON_RECV_DATA_AVAILABLE 0x40
 
 enum {
   QTEL_SOCK_STATE_CLOSE,
-  QTEL_SOCK_STATE_WAIT_PDP_ACTIVE,
   QTEL_SOCK_STATE_OPENING,
-  QTEL_SOCK_STATE_OPEN_PENDING,
+  QTEL_SOCK_STATE_WAIT_PDP_ACTIVE,
+  QTEL_SOCK_STATE_OPEN_ERROR,
   QTEL_SOCK_STATE_OPEN,
 };
 
@@ -76,8 +78,10 @@ typedef struct QTEL_SocketClient_t {
 
 // SOCKET
 QTEL_Status_t QTEL_SockClient_Init(QTEL_SocketClient_t*, const char *host, uint16_t port, void *buffer);
+QTEL_Status_t QTEL_SockClient_SetEvents(QTEL_SocketClient_t*, uint8_t events);
 QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t*);
 QTEL_Status_t QTEL_SockClient_OnNetOpened(QTEL_SocketClient_t*);
+QTEL_Status_t QTEL_SockClient_OnReboot(QTEL_SocketClient_t*);
 QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t*);
 void          QTEL_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
 QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t*, QTEL_HandlerTypeDef*);
