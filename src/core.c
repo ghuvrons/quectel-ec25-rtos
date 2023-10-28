@@ -33,7 +33,7 @@ QTEL_Status_t QTEL_GetFirmwareVersion(QTEL_HandlerTypeDef *qtelPtr)
 {
   QTEL_Status_t status = QTEL_ERROR;
 
-  if (AT_Command(&qtelPtr->atCmd, "AT+CGMR", 0, 0, 0, 0) == AT_OK) {
+  if (AT_Command(&qtelPtr->atCmd, "AT+QGMR", 0, 0, 0, 0) == AT_OK) {
     status = QTEL_OK;
   }
 

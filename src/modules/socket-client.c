@@ -455,7 +455,7 @@ static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock)
   AT_Data_t paramData[4] = {
       AT_String("sslversion"),
       AT_Number(sock->socketManager->sslcontextId),
-      AT_Number(1),
+      AT_Number(4),
   };
 
   if (AT_Command(&qtelPtr->atCmd, "+QSSLCFG", 3, paramData, 0, 0) != AT_OK)
@@ -463,11 +463,10 @@ static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock)
     return QTEL_ERROR;
   }
 
-  uint8_t ts[2] = {0xff, 0xff};
   AT_Data_t paramData1[4] = {
       AT_String("ciphersuite"),
       AT_Number(sock->socketManager->sslcontextId),
-      AT_Hex(ts),
+      AT_Bytes("0XFFFF", 6),
   };
 
   if (AT_Command(&qtelPtr->atCmd, "+QSSLCFG", 3, paramData1, 0, 0) != AT_OK)
@@ -478,7 +477,7 @@ static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock)
   AT_Data_t paramData2[4] = {
       AT_String("seclevel"),
       AT_Number(sock->socketManager->sslcontextId),
-      AT_Number(1),
+      AT_Number(0),
   };
 
   if (AT_Command(&qtelPtr->atCmd, "+QSSLCFG", 3, paramData2, 0, 0) != AT_OK)

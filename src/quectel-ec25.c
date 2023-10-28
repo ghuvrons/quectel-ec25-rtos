@@ -381,7 +381,7 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
     break;
 
   case QTEL_STATE_CHECK_NETWORK:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 30000)) {
+    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 120000)) {
       // reset timer
       qtelPtr->tick.changedState = qtelPtr->getTick();
 
@@ -398,6 +398,9 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
           QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED))
       {
         QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
+      }
+      else {
+        QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
       }
     }
     break;
