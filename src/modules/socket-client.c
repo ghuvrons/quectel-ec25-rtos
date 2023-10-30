@@ -257,6 +257,7 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
     sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
     return QTEL_OK;
   } else if (status != QTEL_OK) {
+    sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
     return QTEL_ERROR;
   }
 
