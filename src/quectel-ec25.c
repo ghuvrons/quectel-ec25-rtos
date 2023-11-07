@@ -231,11 +231,24 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
   switch (qtelPtr->state) {
   case QTEL_STATE_REBOOT:
+    QTEL_Debug("rebooting");
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_SIM_READY | QTEL_STATUS_NET_REGISTERED | QTEL_STATUS_GPRS_REGISTERED);
+
+#if QTEL_EN_FEATURE_NTP
+    qtelPtr->ntp.syncTick = 0;
+    QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCING);
+    QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED);
+#endif /* QTEL_EN_FEATURE_NTP */
+
+#if QTEL_EN_FEATURE_GPS
+    QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_NON_ACTIVE);
+#endif /* QTEL_EN_FEATURE_GPS */
 
 #if QTEL_EN_FEATURE_SOCKET
     QTEL_SockManager_OnReboot(&qtelPtr->socketManager);
 #endif /* QTEL_EN_FEATURE_SOCKET */
 
+    QTEL_Debug("reset power");
     if (qtelPtr->resetPower != 0) {
       while (qtelPtr->resetPower() != QTEL_OK) {
         qtelPtr->delay(1);
@@ -245,47 +258,53 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     break;
 
   case QTEL_STATE_CONFIGURATION:
-    isNeedReset = 0;
+    if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED)) {
+      isNeedReset = 0;
+      // Get firmware
+      // QTEL_GetFirmwareVersion(qtelPtr);
 
-    // Get firmware
-    // QTEL_GetFirmwareVersion(qtelPtr);
+      // disable echo
+      QTEL_Echo(qtelPtr, 0);
 
-    // disable echo
-    QTEL_Echo(qtelPtr, 0);
+      //
+      QTEL_Debug("config urcport");
+      memset(respstr, 0, sizeof(respstr));
+      AT_DataSetString(&paramData[0], "urcport");
+      AT_DataSetBuffer(&respData[0], &respstr[0], 8);
+      AT_DataSetBuffer(&respData[1], &respstr[8], 9);
+      status = AT_Command(&qtelPtr->atCmd, "+QURCCFG", 1, paramData, 2, respData);
+      if (status != AT_OK ||
+          respData[1].type != AT_STRING ||
+          (strncmp(respData[1].value.string, "uart1", 5)) != 0)
+      {
+        AT_Command(&qtelPtr->atCmd, "+QURCCFG=\"urcport\",\"uart1\"", 0, 0, 0, 0);
+        isNeedReset = 1;
+      }
 
-    //
-    memset(respstr, 0, sizeof(respstr));
-    AT_DataSetString(&paramData[0], "urcport");
-    AT_DataSetBuffer(&respData[0], &respstr[0], 8);
-    AT_DataSetBuffer(&respData[1], &respstr[8], 9);
-    status = AT_Command(&qtelPtr->atCmd, "+QURCCFG", 1, paramData, 2, respData);
-    if (status != AT_OK ||
-        respData[1].type != AT_STRING ||
-        (strncmp(respData[1].value.string, "uart1", 5)) != 0)
-    {
-      AT_Command(&qtelPtr->atCmd, "+QURCCFG=\"urcport\",\"uart1\"", 0, 0, 0, 0);
-      isNeedReset = 1;
+      //
+      QTEL_Debug("config urc switch on");
+      AT_DataSetString(&paramData[0], "urc/poweron");
+      AT_DataSetBuffer(&respData[0], &respstr[0], 12);
+      AT_DataSetNumber(&respData[1], 1);
+      status = AT_Command(&qtelPtr->atCmd, "+QCFG", 1, paramData, 2, respData);
+      if (status != AT_OK ||
+          respData[1].type != AT_NUMBER ||
+          respData[1].value.number != 0)
+      {
+        AT_Command(&qtelPtr->atCmd, "+QCFG=\"urc/poweron\",0", 0, 0, 0, 0);
+        isNeedReset = 1;
+      }
+
+
+      AT_Command(&qtelPtr->atCmd, "+CREG=1", 0, 0, 0, 0);
+      AT_Command(&qtelPtr->atCmd, "+CGREG=1", 0, 0, 0, 0);
+      QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED);
+
+      if (isNeedReset) {
+        QTEL_Debug("reseting SIM");
+        QTEL_ResetSIM(qtelPtr);
+      }
     }
-
-    //
-    AT_DataSetString(&paramData[0], "urc/poweron");
-    AT_DataSetBuffer(&respData[0], &respstr[0], 12);
-    AT_DataSetNumber(&respData[1], 1);
-    status = AT_Command(&qtelPtr->atCmd, "+QCFG", 1, paramData, 2, respData);
-    if (status != AT_OK ||
-        respData[1].type != AT_NUMBER ||
-        respData[1].value.number != 0)
-    {
-      AT_Command(&qtelPtr->atCmd, "+QCFG=\"urc/poweron\",0", 0, 0, 0, 0);
-      isNeedReset = 1;
-    }
-
-
-    AT_Command(&qtelPtr->atCmd, "+CREG=1", 0, 0, 0, 0);
-    AT_Command(&qtelPtr->atCmd, "+CGREG=1", 0, 0, 0, 0);
-    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED);
-
-    if (isNeedReset) QTEL_ResetSIM(qtelPtr);
 
     QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_SIMCARD);
 
@@ -497,7 +516,11 @@ static void onReady(void *app, AT_Data_t *_)
   qtelPtr->events  = 0;
   QTEL_Debug("Starting...");
 
-  QTEL_SetState(qtelPtr, QTEL_STATE_CONFIGURATION);
+  if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED)) {
+    QTEL_SetState(qtelPtr, QTEL_STATE_CONFIGURATION);
+  } else {
+    QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_SIMCARD);
+  }
 }
 
 
@@ -514,7 +537,7 @@ static void onSIMReady(void *app, AT_Data_t *data)
       {
         QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
       }
-      QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_NETWORK);
+      else QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_NETWORK);
     }
   }
   else {

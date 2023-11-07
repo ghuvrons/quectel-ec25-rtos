@@ -27,6 +27,7 @@ QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *qtelNTP, void *qtelPtr)
   qtelNTP->qtel = qtelPtr;
   qtelNTP->contextId = 3;
   qtelNTP->status = 0;
+  qtelNTP->syncTick = 0;
   qtelNTP->config.resyncInterval = 24*3600;
   qtelNTP->config.retryInterval = 5000;
 
@@ -45,7 +46,8 @@ QTEL_Status_t QTEL_NTP_SetupServer(QTEL_NTP_HandlerTypeDef *qtelNTP, char *serve
     qtelNTP->port = 123;
   else
     qtelNTP->port = port;
-    
+
+  qtelNTP->syncTick = 0;
   QTEL_UNSET_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED);
   return QTEL_OK;
 }
@@ -66,7 +68,7 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
       QTEL_NTP_Sync(qtelNTP);
   }
   else {
-    if ((qtelPtr->getTick() - qtelNTP->syncTick) > 60000)
+    if (qtelNTP->syncTick == 0 || (qtelPtr->getTick() - qtelNTP->syncTick) > 60000)
       QTEL_NTP_Sync(qtelNTP);
   }
 
@@ -116,7 +118,6 @@ QTEL_Status_t QTEL_NTP_OnSyncingFinish(QTEL_NTP_HandlerTypeDef *qtelNTP)
   QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
   QTEL_Datetime_t dt;
 
-  QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCING);
   if (QTEL_NET_DeactivatePDP(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
   {
     return QTEL_ERROR;
@@ -136,6 +137,7 @@ static void onSynced(void *app, AT_Data_t *data)
 {
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
+  QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCING);
   if (data->type == AT_NUMBER && data->value.number == 0) {
     QTEL_Debug("[NTP] synced");
     QTEL_SET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED);

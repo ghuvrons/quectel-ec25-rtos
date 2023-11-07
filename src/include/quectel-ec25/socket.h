@@ -17,16 +17,17 @@
 
 #define QTEL_SOCK_DEFAULT_TO 2000
 
-enum {
+typedef enum {
   QTEL_SOCKH_STATE_NON_ACTIVE,
   QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING,   // waiting Quectel activated
   QTEL_SOCKH_STATE_PDP_ACTIVATING,
   QTEL_SOCKH_STATE_PDP_ACTIVE,
-};
+} QTEL_Socket_State_t;
 
 typedef struct QTEL_Socket_HandlerTypeDef {
-  void    *qtel;
-  uint8_t state;
+  void                *qtel;
+  QTEL_Socket_State_t state;
+
   uint8_t contextId;
   uint8_t sslcontextId;
 

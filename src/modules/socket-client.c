@@ -82,6 +82,7 @@ QTEL_Status_t QTEL_SockClient_OnReboot(QTEL_SocketClient_t *sock)
   if (sock->state == QTEL_SOCK_STATE_OPEN) {
     sock->state = QTEL_SOCK_STATE_CLOSE;
     sock->tick.reconnDelay = qtelPtr->getTick();
+    if (sock->listeners.onClosed) sock->listeners.onClosed();
   }
 
   return QTEL_OK;

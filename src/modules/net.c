@@ -22,11 +22,7 @@ QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef *qtelNet, void *qtelPtr)
   if (((QTEL_HandlerTypeDef*)qtelPtr)->key != QTEL_KEY)
     return QTEL_ERROR;
 
-  qtelNet->qtel         = qtelPtr;
-  qtelNet->status       = 0;
-  qtelNet->events       = 0;
-  qtelNet->gprs_status  = 0;
-  qtelNet->state        = QTEL_NET_STATE_NON_ACTIVE;
+  qtelNet->qtel = qtelPtr;
 
   return QTEL_OK;
 }
@@ -48,7 +44,7 @@ void QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef *qtelNet, char *APN, char *user, 
 QTEL_Status_t QTEL_NET_ConfigurePDP(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
 {
   if (contextId == 0 || contextId > 16) return QTEL_ERROR;
-  if (QTEL_BITS_IS_ALL(qtelNet->isCtxConfigured, (1 << (contextId-1)))) {
+  if (QTEL_BITS_IS(qtelNet->isCtxConfigured, (1 << (contextId-1)))) {
     return QTEL_OK;
   }
 
@@ -109,14 +105,12 @@ QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t con
   }
 
   *isActive = 0;
-  QTEL_BITS_UNSET(qtelNet->isCtxActived, (1 << (contextId-1)));
   for (uint8_t i = 0; i < 16; i++) {
     if (respData[i][0].type == AT_NUMBER &&
         respData[i][0].value.number == contextId)
     {
       if (respData[i][1].value.number == 1) {
         *isActive = 1;
-        QTEL_BITS_SET(qtelNet->isCtxActived, (1 << (contextId-1)));
       }
       break;
     }

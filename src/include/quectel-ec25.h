@@ -12,7 +12,7 @@
 #include <quectel-ec25/socket.h>
 #include <at-command.h>
 
-#define QTEL_STATUS_ACTIVE          0x01
+#define QTEL_STATUS_ATOK          0x01
 #define QTEL_STATUS_CONFIGURED      0x02
 #define QTEL_STATUS_SIM_READY       0x04
 #define QTEL_STATUS_NET_REGISTERED  0x08

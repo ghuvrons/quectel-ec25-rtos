@@ -22,21 +22,9 @@
 #define QTEL_NET_STATUS_NTP_WAS_SET      0x40
 #define QTEL_NET_STATUS_NTP_WAS_SYNCED   0x80
 
-enum {
-  QTEL_NET_STATE_NON_ACTIVE,
-  QTEL_NET_STATE_CHECK_GPRS,
-  QTEL_NET_STATE_SET_PDP_CONTEXT,
-  QTEL_NET_STATE_ONLINE,
-};
-
 typedef struct {
   void      *qtel;         // QTEL_HandlerTypeDef
   uint16_t  isCtxConfigured;
-  uint16_t  isCtxActived;
-  uint8_t   status;
-  uint8_t   state;
-  uint8_t   events;
-  uint32_t  stateTick;
 
   struct {
     char *APN;
@@ -48,8 +36,6 @@ typedef struct {
   void (*onOpened)(void);
   void (*onOpenError)(void);
   void (*onClosed)(void);
-
-  uint8_t gprs_status;
 } QTEL_NET_HandlerTypeDef;
 
 

@@ -77,6 +77,8 @@ void QTEL_SockManager_OnNewState(QTEL_Socket_HandlerTypeDef *sockMgr)
         QTEL_SockClient_OnNetOpened(sockMgr->sockets[i]);
     }
     break;
+
+  default: break;
   }
 }
 
@@ -139,16 +141,7 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
   QTEL_HandlerTypeDef *qtelPtr = sockMgr->qtel;
   uint8_t i;
 
-  if (qtelPtr->state == QTEL_STATE_REBOOT) {
-    for (i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
-      if (sockMgr->sockets[i] != 0) {
-        if (sockMgr->sockets[i]->state != QTEL_SOCK_STATE_CLOSE) {
-          QTEL_SockClient_Close(sockMgr->sockets[i]);
-          continue;
-        }
-      }
-    }
-
+  if (qtelPtr->state < QTEL_STATE_CHECK_SIMCARD) {
     return;
   }
 
@@ -156,15 +149,6 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
     if (sockMgr->sockets[i] != 0)
       QTEL_SockClient_Loop(sockMgr->sockets[i]);
   }
-
-  switch (sockMgr->state) {
-  case QTEL_SOCKH_STATE_NON_ACTIVE:
-    break;
-
-  case QTEL_SOCKH_STATE_PDP_ACTIVE:
-    break;
-  }
-  return;
 }
 
 

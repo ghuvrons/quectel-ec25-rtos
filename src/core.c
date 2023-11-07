@@ -19,10 +19,10 @@ QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
   
   if (AT_Command(&qtelPtr->atCmd, "", 0, 0, 0, 0) == AT_OK) {
     status = QTEL_OK;
-    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_ACTIVE);
+    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_ATOK);
   } else {
     qtelPtr->state = QTEL_STATE_CHECK_AT;
-    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_ACTIVE);
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_ATOK);
   }
 
   return status;
