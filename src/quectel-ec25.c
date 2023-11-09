@@ -195,6 +195,11 @@ QTEL_Status_t QTEL_Start(QTEL_HandlerTypeDef *qtelPtr)
   return QTEL_OK;
 }
 
+QTEL_Status_t QTEL_Reboot(QTEL_HandlerTypeDef *qtelPtr)
+{
+  QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+  return QTEL_OK;
+}
 
 QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef *qtelPtr)
 {
@@ -232,6 +237,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   switch (qtelPtr->state) {
   case QTEL_STATE_REBOOT:
     QTEL_Debug("rebooting");
+    qtelPtr->signal = 0;
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_SIM_READY | QTEL_STATUS_NET_REGISTERED | QTEL_STATUS_GPRS_REGISTERED);
 
 #if QTEL_EN_FEATURE_NTP

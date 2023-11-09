@@ -123,6 +123,7 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef*);
 void QTEL_Thread_ATCHandler(QTEL_HandlerTypeDef*);
 
 QTEL_Status_t QTEL_Start(QTEL_HandlerTypeDef*);
+QTEL_Status_t QTEL_Reboot(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef*);
 void QTEL_SetState(QTEL_HandlerTypeDef*, uint8_t newState);
 
