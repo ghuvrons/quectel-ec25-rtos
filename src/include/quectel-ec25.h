@@ -12,7 +12,7 @@
 #include <quectel-ec25/socket.h>
 #include <at-command.h>
 
-#define QTEL_STATUS_ATOK          0x01
+#define QTEL_STATUS_ATOK            0x01
 #define QTEL_STATUS_CONFIGURED      0x02
 #define QTEL_STATUS_SIM_READY       0x04
 #define QTEL_STATUS_NET_REGISTERED  0x08
@@ -22,14 +22,14 @@
 #define QTEL_STATUS_CMD_RUNNING     0x80
 
 typedef enum {
- QTEL_STATE_NON_ACTIVE,
- QTEL_STATE_REBOOT,
- QTEL_STATE_READY,
- QTEL_STATE_CHECK_AT,
- QTEL_STATE_CONFIGURATION,
- QTEL_STATE_CHECK_SIMCARD,
- QTEL_STATE_CHECK_NETWORK,
- QTEL_STATE_ACTIVE,
+  QTEL_STATE_NON_ACTIVE,
+  QTEL_STATE_REBOOT,
+  QTEL_STATE_READY,
+  QTEL_STATE_CHECK_AT,
+  QTEL_STATE_CONFIGURATION,
+  QTEL_STATE_CHECK_SIMCARD,
+  QTEL_STATE_CHECK_NETWORK,
+  QTEL_STATE_ACTIVE,
 } QTEL_State_t;
 
 
@@ -70,9 +70,11 @@ typedef struct QTEL_HandlerTypeDef {
 
   uint8_t network_status;
   uint8_t GPRS_network_status;
-  char operator[QTEL_OPERATOR_BUFFER_SIZE+1];
+  const char *operator;
+  char registeredOperator[QTEL_OPERATOR_BUFFER_SIZE+1];
   char SIM_SN[QTEL_SIM_SN_BUFFER_SIZE+1];
   char SIM_IMEI[QTEL_SIM_IMEI_BUFFER_SIZE+1];
+  char iccid[QTEL_ICCID_BUFFER_SIZE+1];
 
   struct {
     void (*onReady)(void);

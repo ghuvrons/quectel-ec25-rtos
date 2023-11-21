@@ -33,13 +33,39 @@ QTEL_Status_t QTEL_GetFirmwareVersion(QTEL_HandlerTypeDef *qtelPtr)
 {
   QTEL_Status_t status = QTEL_ERROR;
 
-  if (AT_Command(&qtelPtr->atCmd, "AT+QGMR", 0, 0, 0, 0) == AT_OK) {
+  if (AT_Command(&qtelPtr->atCmd, "+QGMR", 0, 0, 0, 0) == AT_OK) {
     status = QTEL_OK;
   }
 
   return status;
 }
 
+
+QTEL_Status_t QTEL_GetICCID(QTEL_HandlerTypeDef *qtelPtr)
+{
+  QTEL_Status_t status = QTEL_ERROR;
+  AT_Data_t resp[1] = {
+      AT_Buffer((uint8_t *)qtelPtr->iccid, QTEL_ICCID_BUFFER_SIZE),
+  };
+
+  if (AT_Command(&qtelPtr->atCmd, "AT+QCCID", 0, 0, 1, resp) == AT_OK) {
+    status = QTEL_OK;
+  }
+
+  return status;
+}
+
+
+QTEL_Status_t QTEL_GetError(QTEL_HandlerTypeDef *qtelPtr)
+{
+  QTEL_Status_t status = QTEL_ERROR;
+
+  if (AT_Command(&qtelPtr->atCmd, "AT+QIGETERROR", 0, 0, 0, 0) == AT_OK) {
+    status = QTEL_OK;
+  }
+
+  return status;
+}
 
 QTEL_Status_t QTEL_Echo(QTEL_HandlerTypeDef *qtelPtr, uint8_t onoff)
 {
@@ -149,42 +175,6 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
 }
 
 
-QTEL_Status_t QTEL_ReqisterNetwork(QTEL_HandlerTypeDef *qtelPtr)
-{
-  QTEL_Status_t status = QTEL_ERROR;
-  uint8_t operator_selection_mode;
-  AT_Data_t paramData[1] = {
-      AT_Number(0),
-  };
-  uint8_t respstr[32];
-  AT_Data_t respData[4] = {
-      AT_Number(0),
-      AT_Number(0),
-      AT_Buffer(respstr, 32),
-      AT_Number(0),
-  };
-
-  memset(respstr, 0, 32);
-
-  QTEL_Debug("Registering cellular network....");
-
-  // Select operator automatically
-  if (AT_Check(&qtelPtr->atCmd, "+COPS", 1, respData) != AT_OK) goto endCmd;
-  operator_selection_mode = (uint8_t) respData[0].value.number;
-
-  if (operator_selection_mode != 0) {
-    // set
-    if (AT_Command(&qtelPtr->atCmd, "+COPS", 1, paramData, 0, 0) != AT_OK) goto endCmd;
-
-    // run
-    if (AT_Command(&qtelPtr->atCmd, "+COPS", 0, 0, 0, 0) != AT_OK) goto endCmd;
-  }
-
-endCmd:
-  return status;
-}
-
-
 QTEL_Status_t QTEL_GetTime(QTEL_HandlerTypeDef *qtelPtr, QTEL_Datetime_t *dt)
 {
   AT_Status_t status;
@@ -228,6 +218,61 @@ QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef *qtelPtr)
   return QTEL_OK;
 }
 
+/**
+ *
+ * @param qtelPtr
+ * @param operator
+ * @return status
+ */
+QTEL_Status_t QTEL_SetOperator(QTEL_HandlerTypeDef *qtelPtr, const char *operator)
+{
+  AT_Status_t status;
+  AT_Data_t paramData[3] = {
+      AT_Number(4),
+      AT_Number(0),
+      AT_String(operator),
+  };
+
+  if (operator == 0) {
+    paramData[0].value.number = 0;
+    status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+COPS", 1, paramData, 0, 0, 190000);
+  }
+  else {
+    status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+COPS", 3, paramData, 0, 0, 190000);
+  }
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
+  }
+
+  return QTEL_OK;
+}
+
+
+QTEL_Status_t QTEL_GetAvailableOperator(QTEL_HandlerTypeDef *qtelPtr)
+{
+  AT_Status_t status;
+  uint8_t strBuffer[7][3][16];
+  memset(&strBuffer[0][0][0], 0, 7*3*16);
+
+  AT_Data_t respData[7][5];
+
+  for (uint8_t i = 0; i < 7; i++) {
+    AT_DataSetNumber(&respData[i][0], 0);
+    AT_DataSetBuffer(&respData[i][1], strBuffer[i][0], 16);
+    AT_DataSetBuffer(&respData[i][2], strBuffer[i][1], 16);
+    AT_DataSetBuffer(&respData[i][3], strBuffer[i][2], 16);
+    AT_DataSetNumber(&respData[i][4], 0);
+  }
+
+  status = AT_TestWithTimeout(&qtelPtr->atCmd, "+COPS",
+                              7, 5, &respData[0][0], 190000);
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
+  }
+
+  return QTEL_OK;
+}
+
 
 QTEL_Status_t QTEL_GetOperator(QTEL_HandlerTypeDef *qtelPtr)
 {
@@ -235,7 +280,7 @@ QTEL_Status_t QTEL_GetOperator(QTEL_HandlerTypeDef *qtelPtr)
   AT_Data_t respData[3] = {
       AT_Number(0),
       AT_Number(0),
-      AT_Buffer((uint8_t*)qtelPtr->operator, QTEL_OPERATOR_BUFFER_SIZE),
+      AT_Buffer((uint8_t*)qtelPtr->registeredOperator, QTEL_OPERATOR_BUFFER_SIZE),
   };
 
   status = AT_Check(&qtelPtr->atCmd, "+COPS", 3, respData);

@@ -23,6 +23,7 @@ static void onSIMReady(void *app, AT_Data_t*);
 static void onNetworkStatusUpdated(void *app, AT_Data_t*);
 static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t*);
 static void onGetRespConnect(void *app, uint8_t *data, uint16_t len);
+static void onPoweredDown(void *app, uint8_t *data, uint16_t len);
 
 QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
 {
@@ -61,6 +62,7 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
   AT_On(&qtelPtr->atCmd, "+CPIN", qtelPtr, 1, simStatus, onSIMReady);
 
   AT_ReadlineOn(&qtelPtr->atCmd, "CONNECT", qtelPtr, onGetRespConnect);
+  AT_ReadlineOn(&qtelPtr->atCmd, "POWERED DOWN", qtelPtr, onPoweredDown);
 
   AT_Data_t *networkStatusUpdatedResp = malloc(sizeof(AT_Data_t));
   memset(networkStatusUpdatedResp, 0, sizeof(AT_Data_t));
@@ -226,11 +228,12 @@ void QTEL_SetState(QTEL_HandlerTypeDef *qtelPtr, QTEL_State_t newState)
 
 static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 {
+  QTEL_Status_t status;
+  AT_Status_t atstatus;
   uint8_t respstr[20];
   AT_Data_t paramData[1];
   AT_Data_t respData[2];
   uint8_t isNeedReset;
-  AT_Status_t status;
 
   qtelPtr->tick.changedState = qtelPtr->getTick();
 
@@ -254,20 +257,20 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_SockManager_OnReboot(&qtelPtr->socketManager);
 #endif /* QTEL_EN_FEATURE_SOCKET */
 
+    qtelPtr->delay(1000);
     QTEL_Debug("reset power");
     if (qtelPtr->resetPower != 0) {
       while (qtelPtr->resetPower() != QTEL_OK) {
         qtelPtr->delay(1);
       }
     }
+    qtelPtr->delay(20000);
     QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_AT);
     break;
 
   case QTEL_STATE_CONFIGURATION:
     if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED)) {
       isNeedReset = 0;
-      // Get firmware
-      // QTEL_GetFirmwareVersion(qtelPtr);
 
       // disable echo
       QTEL_Echo(qtelPtr, 0);
@@ -278,8 +281,8 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
       AT_DataSetString(&paramData[0], "urcport");
       AT_DataSetBuffer(&respData[0], &respstr[0], 8);
       AT_DataSetBuffer(&respData[1], &respstr[8], 9);
-      status = AT_Command(&qtelPtr->atCmd, "+QURCCFG", 1, paramData, 2, respData);
-      if (status != AT_OK ||
+      atstatus = AT_Command(&qtelPtr->atCmd, "+QURCCFG", 1, paramData, 2, respData);
+      if (atstatus != AT_OK ||
           respData[1].type != AT_STRING ||
           (strncmp(respData[1].value.string, "uart1", 5)) != 0)
       {
@@ -292,15 +295,14 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
       AT_DataSetString(&paramData[0], "urc/poweron");
       AT_DataSetBuffer(&respData[0], &respstr[0], 12);
       AT_DataSetNumber(&respData[1], 1);
-      status = AT_Command(&qtelPtr->atCmd, "+QCFG", 1, paramData, 2, respData);
-      if (status != AT_OK ||
+      atstatus = AT_Command(&qtelPtr->atCmd, "+QCFG", 1, paramData, 2, respData);
+      if (atstatus != AT_OK ||
           respData[1].type != AT_NUMBER ||
           respData[1].value.number != 0)
       {
         AT_Command(&qtelPtr->atCmd, "+QCFG=\"urc/poweron\",0", 0, 0, 0, 0);
         isNeedReset = 1;
       }
-
 
       AT_Command(&qtelPtr->atCmd, "+CREG=1", 0, 0, 0, 0);
       AT_Command(&qtelPtr->atCmd, "+CGREG=1", 0, 0, 0, 0);
@@ -333,27 +335,33 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
   case QTEL_STATE_CHECK_NETWORK:
     QTEL_Debug("Checking network....");
-    if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED)) {
-      checkNetwork(qtelPtr);
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED|QTEL_STATUS_GPRS_REGISTERED);
+
+    status = QTEL_SetOperator(qtelPtr, qtelPtr->operator);
+    if (status == QTEL_TIMEOUT) {
+      QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+      break;
     }
 
-    if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)) {
-      checkGPRSNetwork(qtelPtr);
-    }
+    checkNetwork(qtelPtr);
+    checkGPRSNetwork(qtelPtr);
 
-    if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
-        QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED))
-    {
+    if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED|QTEL_STATUS_GPRS_REGISTERED)) {
       QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
+      break;
+    }
+    else {
+      qtelPtr->tick.changedState = qtelPtr->getTick();
     }
     break;
 
   case QTEL_STATE_ACTIVE:
+    QTEL_Debug("Active");
     qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_ACTIVED);
+
     QTEL_GetOperator(qtelPtr);
     QTEL_CheckQENG(qtelPtr);
-    QTEL_Debug("operator: %s", qtelPtr->operator);
-    QTEL_Debug("Active");
+    QTEL_Debug("connected to %s", qtelPtr->registeredOperator);
     break;
 
   default: break;
@@ -406,7 +414,7 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
     break;
 
   case QTEL_STATE_CHECK_NETWORK:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 120000)) {
+    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 200000)) {
       // reset timer
       qtelPtr->tick.changedState = qtelPtr->getTick();
 
@@ -477,7 +485,7 @@ static void checkNetwork(QTEL_HandlerTypeDef *qtelPtr)
     break;
   
   case 0:
-    QTEL_ReqisterNetwork(qtelPtr);
+    QTEL_Debug("Cellular network is not registered....");
     break;
 
   case 2:
@@ -499,6 +507,10 @@ static void checkGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
 
   switch (qtelPtr->GPRS_network_status)
   {
+  case 0:
+    QTEL_Debug("GPRS network is not registered....");
+    break;
+
   case 1:
   case 5:
     QTEL_Debug("GPRS network registered", (qtelPtr->GPRS_network_status == 5)? " (roaming)":"");
@@ -564,6 +576,7 @@ static void onNetworkStatusUpdated(void *app, AT_Data_t *data)
   switch (qtelPtr->network_status) {
   case 5:
   case 1:
+    QTEL_Debug("Network registered");
     if (qtelPtr->state == QTEL_STATE_CHECK_NETWORK) {
       if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED))
       {
@@ -595,6 +608,7 @@ static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t *data)
   switch (qtelPtr->GPRS_network_status) {
   case 5:
   case 1:
+    QTEL_Debug("GPRS network registered");
     if (qtelPtr->state == QTEL_STATE_CHECK_NETWORK) {
       if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED)) {
         QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
@@ -604,7 +618,7 @@ static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t *data)
     break;
 
   case 2:
-    QTEL_Debug("Searching network....");
+    QTEL_Debug("Searching GPRS network....");
 
   default:
     if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
@@ -638,4 +652,13 @@ static void onGetRespConnect(void *app, uint8_t *data, uint16_t len)
       }
     }
   }
+}
+
+
+static void onPoweredDown(void *app, uint8_t *_, uint16_t __)
+{
+  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
+
+  QTEL_Debug("Powered Down");
+  QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
 }
