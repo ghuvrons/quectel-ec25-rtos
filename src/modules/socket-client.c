@@ -135,7 +135,7 @@ QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t *sock)
     if (sock->tick.connecting && QTEL_IsTimeout(qtelPtr, sock->tick.connecting, 150000)) {
       sock->tick.connecting = 0;
       sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
-      QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+      QTEL_Reboot(qtelPtr);
     }
     break;
 

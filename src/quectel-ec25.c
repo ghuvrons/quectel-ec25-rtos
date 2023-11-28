@@ -339,7 +339,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
     status = QTEL_SetOperator(qtelPtr, qtelPtr->operator);
     if (status == QTEL_TIMEOUT) {
-      QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+      QTEL_Reboot(qtelPtr);
       break;
     }
 
@@ -433,7 +433,7 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
         QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
       }
       else {
-        QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+        QTEL_Reboot(qtelPtr);
       }
     }
     break;
@@ -442,7 +442,7 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
     if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.checksignal, 10000)) {
       qtelPtr->tick.checksignal = qtelPtr->getTick();
       if (QTEL_CheckSugnal(qtelPtr) == QTEL_RESPONSE_TIMEOUT) {
-        QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+        QTEL_Reboot(qtelPtr);
       }
     }
     break;
@@ -660,5 +660,5 @@ static void onPoweredDown(void *app, uint8_t *_, uint16_t __)
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
   QTEL_Debug("Powered Down");
-  QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+  QTEL_Reboot(qtelPtr);
 }

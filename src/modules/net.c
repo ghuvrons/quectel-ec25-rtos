@@ -145,7 +145,7 @@ checkContext:
 
   commandSent++;
   if (commandSent > 3) {
-    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+      QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
 
@@ -157,7 +157,7 @@ checkContext:
     goto checkContext;
 
   if (atstatus == AT_RESPONSE_TIMEOUT) {
-    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+      QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
 
@@ -165,7 +165,7 @@ checkContext:
                                    1, paramData, 0, 0, 40000);
 
   if (atstatus == AT_RESPONSE_TIMEOUT) {
-    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
 
@@ -193,7 +193,7 @@ checkContext:
 
   commandSent++;
   if (commandSent > 3) {
-    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
 
@@ -201,7 +201,7 @@ checkContext:
   atstatus = AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
                                    1, paramData, 0, 0, 40000);
   if (atstatus == AT_RESPONSE_TIMEOUT) {
-    QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
   goto checkContext;
