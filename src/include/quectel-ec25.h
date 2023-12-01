@@ -61,11 +61,11 @@ typedef struct QTEL_HandlerTypeDef {
   } serial;
 
   struct {
-    AT_Status_t (*mutexLock)(uint32_t timeout);
-    AT_Status_t (*mutexUnlock)(void);
-    AT_Status_t (*eventSet)(uint32_t events);
-    AT_Status_t (*eventWait)(uint32_t waitEvents, uint32_t *onEvents, uint32_t timeout);
-    AT_Status_t (*eventClear)(uint32_t events);
+    QTEL_Status_t (*mutexLock)(uint32_t timeout);
+    QTEL_Status_t (*mutexUnlock)(void);
+    QTEL_Status_t (*eventSet)(uint32_t events);
+    QTEL_Status_t (*eventWait)(uint32_t waitEvents, uint32_t *onEvents, uint32_t timeout);
+    QTEL_Status_t (*eventClear)(uint32_t events);
   } rtos;
 
   uint8_t network_status;

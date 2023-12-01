@@ -141,7 +141,7 @@ int QTEL_FILE_Read(QTEL_FILE_HandlerTypeDef *qtelFile, int fn, void *buffer, uin
   uint32_t events;
 
   // wait onGetRespConnect executed
-  if (qtel->rtos.eventWait(QTEL_RTOS_EVT_RESP_CONNECT, &events, hat->config.commandTimeout) != AT_OK) {
+  if (qtel->rtos.eventWait(QTEL_RTOS_EVT_RESP_CONNECT, &events, hat->config.commandTimeout) != QTEL_OK) {
     qtel->rtos.eventSet(QTEL_RTOS_EVT_RESP_CONNECT_CLOSE);
     qtel->isRespConnectHandle = 0;
     goto endCmd;

@@ -25,12 +25,12 @@ static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t*);
 static void onGetRespConnect(void *app, uint8_t *data, uint16_t len);
 static void onPoweredDown(void *app, uint8_t *data, uint16_t len);
 
+
 QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
 {
   if (qtelPtr->getTick == 0) return QTEL_ERROR;
   if (qtelPtr->delay == 0) return QTEL_ERROR;
 
-  qtelPtr->atCmd.serial.readline = qtelPtr->serial.readline;
   qtelPtr->network_status = 0;
   qtelPtr->isRespConnectHandle = 0;
 
@@ -38,12 +38,6 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
   qtelPtr->atCmd.serial.readinto = qtelPtr->serial.readinto;
   qtelPtr->atCmd.serial.readline = qtelPtr->serial.readline;
   qtelPtr->atCmd.serial.write    = qtelPtr->serial.write;
-
-  qtelPtr->atCmd.rtos.mutexLock    = qtelPtr->rtos.mutexLock;
-  qtelPtr->atCmd.rtos.mutexUnlock  = qtelPtr->rtos.mutexUnlock;
-  qtelPtr->atCmd.rtos.eventSet     = qtelPtr->rtos.eventSet;
-  qtelPtr->atCmd.rtos.eventWait    = qtelPtr->rtos.eventWait;
-  qtelPtr->atCmd.rtos.eventClear   = qtelPtr->rtos.eventClear;
 
   AT_Config_t config = {
       .commandTimeout = 30000,
@@ -113,6 +107,7 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
   uint32_t timeout = 2000; // ms
   uint32_t lastTO = 0;
 
+  AT_Start(&qtelPtr->atCmd);
   if (qtelPtr->resetPower != 0) {
     while (qtelPtr->resetPower() != QTEL_OK) {
       qtelPtr->delay(1);
@@ -120,7 +115,7 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
   }
 
   for (;;) {
-    if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_ALL, &notifEvent, timeout) == AT_OK) {
+    if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_ALL, &notifEvent, timeout) == QTEL_OK) {
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_NEW_STATE)) {
         onNewState(qtelPtr);
       }
@@ -644,7 +639,7 @@ static void onGetRespConnect(void *app, uint8_t *data, uint16_t len)
   qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_RESP_CONNECT);
 
   while (qtelPtr->isRespConnectHandle) {
-    if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_RESP_CONNECT_CLOSE, &events, 1000) != AT_OK) {
+    if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_RESP_CONNECT_CLOSE, &events, 1000) != QTEL_OK) {
       if (counter++ > 60) {
         // break if too long
         qtelPtr->isRespConnectHandle = 0;
