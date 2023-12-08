@@ -254,11 +254,15 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
   }
 
   status = QTEL_SockManager_PDP_Activate(&qtelPtr->socketManager);
-  if (status == QTEL_ERROR_PENDING) {
-    sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
-    return QTEL_OK;
-  } else if (status != QTEL_OK) {
-    sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
+  if (status != QTEL_OK) {
+    if (qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING ||
+        qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING)
+    {
+      sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
+      return QTEL_OK;
+    }
+
+    sock->state = QTEL_SOCK_STATE_CLOSE;
     return QTEL_ERROR;
   }
 

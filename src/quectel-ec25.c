@@ -107,7 +107,11 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
   uint32_t timeout = 2000; // ms
   uint32_t lastTO = 0;
 
+  qtelPtr->status = 0;
+  qtelPtr->events = 0;
+
   AT_Start(&qtelPtr->atCmd);
+
   if (qtelPtr->resetPower != 0) {
     while (qtelPtr->resetPower() != QTEL_OK) {
       qtelPtr->delay(1);
@@ -236,7 +240,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   case QTEL_STATE_REBOOT:
     QTEL_Debug("rebooting");
     qtelPtr->signal = 0;
-    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_SIM_READY | QTEL_STATUS_NET_REGISTERED | QTEL_STATUS_GPRS_REGISTERED);
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED | QTEL_STATUS_SIM_READY | QTEL_STATUS_NET_REGISTERED | QTEL_STATUS_GPRS_REGISTERED);
 
 #if QTEL_EN_FEATURE_NTP
     qtelPtr->ntp.syncTick = 0;
@@ -259,7 +263,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
         qtelPtr->delay(1);
       }
     }
-    qtelPtr->delay(20000);
+    qtelPtr->delay(10000);
     QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_AT);
     break;
 
@@ -525,8 +529,13 @@ static void onReady(void *app, AT_Data_t *_)
 {
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
-  qtelPtr->status  = 0;
   qtelPtr->events  = 0;
+  QTEL_UNSET_STATUS(qtelPtr,
+                    QTEL_STATUS_SIM_READY |
+                    QTEL_STATUS_CONFIGURED |
+                    QTEL_STATUS_NET_REGISTERED |
+                    QTEL_STATUS_GPRS_REGISTERED);
+
   QTEL_Debug("Starting...");
 
   if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED)) {

@@ -98,6 +98,8 @@ QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t con
 
   memset(respData, 0, sizeof(respData));
 
+  QTEL_Debug("check PDP Ctx %d", contextId);
+
   // check
   status = AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]);
   if (status != AT_OK) {
@@ -111,6 +113,7 @@ QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t con
     {
       if (respData[i][1].value.number == 1) {
         *isActive = 1;
+        QTEL_Debug("check PDP Ctx %d actived", contextId);
       }
       break;
     }
@@ -145,9 +148,14 @@ checkContext:
 
   commandSent++;
   if (commandSent > 3) {
-      QTEL_Reboot(qtelPtr);
+    QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
+  else if (commandSent > 2) {
+    QTEL_Debug("trouble activate PDP Ctx %d", contextId);
+  }
+
+  QTEL_Debug("activate PDP Ctx %d", contextId);
 
   // command
   atstatus = AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIACT",
@@ -157,7 +165,8 @@ checkContext:
     goto checkContext;
 
   if (atstatus == AT_RESPONSE_TIMEOUT) {
-      QTEL_Reboot(qtelPtr);
+    QTEL_Debug("activate PDP Ctx %d timeout", contextId);
+    QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
 
@@ -165,6 +174,7 @@ checkContext:
                                    1, paramData, 0, 0, 40000);
 
   if (atstatus == AT_RESPONSE_TIMEOUT) {
+    QTEL_Debug("deactivate PDP Ctx %d timeout", contextId);
     QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
   }
@@ -195,6 +205,8 @@ checkContext:
   if (commandSent > 3) {
     QTEL_Reboot(qtelPtr);
     return QTEL_ERROR;
+  } else if  (commandSent > 2) {
+    QTEL_Debug("check n %d", commandSent);
   }
 
   // command

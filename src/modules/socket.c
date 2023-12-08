@@ -115,11 +115,14 @@ QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef *sockMgr)
     return QTEL_ERROR_PENDING;
   }
 
+  sockMgr->activatingTick = qtelPtr->getTick();
   status = QTEL_NET_ActivatePDP(&qtelPtr->net, sockMgr->contextId);
   if (status == QTEL_OK)
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVE);
-  else
+  else if (qtelPtr->state != QTEL_STATE_ACTIVE) {
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING);
+    return QTEL_ERROR_PENDING;
+  }
 
   return status;
 }
@@ -143,6 +146,13 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
 
   if (qtelPtr->state < QTEL_STATE_CHECK_SIMCARD) {
     return;
+  }
+
+  if (sockMgr->state == QTEL_SOCKH_STATE_PDP_ACTIVATING && qtelPtr->state == QTEL_STATE_ACTIVE)
+  {
+    if (QTEL_IsTimeout(qtelPtr, sockMgr->activatingTick, 10000)) {
+      QTEL_SockManager_PDP_Activate(sockMgr);
+    }
   }
 
   for (i = 0; i < QTEL_NUM_OF_SOCKET; i++) {

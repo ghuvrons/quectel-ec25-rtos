@@ -30,6 +30,7 @@ typedef struct QTEL_Socket_HandlerTypeDef {
 
   uint8_t contextId;
   uint8_t sslcontextId;
+  uint32_t activatingTick;
 
   uint8_t                     socketsNb;
   struct QTEL_SocketClient_t  *sockets[QTEL_NUM_OF_SOCKET];
