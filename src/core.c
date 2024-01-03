@@ -233,7 +233,7 @@ QTEL_Status_t QTEL_SetOperator(QTEL_HandlerTypeDef *qtelPtr, const char *operato
       AT_String(operator),
   };
 
-  if (operator == 0) {
+  if (operator == 0 || operator[0] == 0) {
     paramData[0].value.number = 0;
     status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+COPS", 1, paramData, 0, 0, 190000);
   }

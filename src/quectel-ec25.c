@@ -335,12 +335,15 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   case QTEL_STATE_CHECK_NETWORK:
     QTEL_Debug("Checking network....");
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED|QTEL_STATUS_GPRS_REGISTERED);
+    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING);
 
     status = QTEL_SetOperator(qtelPtr, qtelPtr->operator);
     if (status == QTEL_TIMEOUT) {
       QTEL_Reboot(qtelPtr);
       break;
     }
+
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING);
 
     checkNetwork(qtelPtr);
     checkGPRSNetwork(qtelPtr);
@@ -426,7 +429,8 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
         checkGPRSNetwork(qtelPtr);
       }
 
-      if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
+      if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING) &&
+          QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
           QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED))
       {
         QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
@@ -454,7 +458,8 @@ static void checkSIM(QTEL_HandlerTypeDef *qtelPtr) {
   QTEL_Debug("Checking SIM....");
   if (QTEL_CheckSIMCard(qtelPtr) == QTEL_OK) {
     QTEL_GetSIMInfo(qtelPtr);
-    if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
+    if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING) &&
+        QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
         QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED))
     {
       QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
@@ -554,8 +559,9 @@ static void onSIMReady(void *app, AT_Data_t *data)
     QTEL_Debug("SIM Ready...");
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_SIM_READY);
     if (qtelPtr->state == QTEL_STATE_CHECK_SIMCARD) {
-      if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
-          QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED))
+      if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING) &&
+          (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED) &&
+           QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)))
       {
         QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
       }
