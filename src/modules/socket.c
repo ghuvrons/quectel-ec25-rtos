@@ -110,7 +110,7 @@ QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef *sockMgr)
   QTEL_HandlerTypeDef *qtelPtr = sockMgr->qtel;
   QTEL_Status_t status;
 
-  if (qtelPtr->state != QTEL_STATE_ACTIVE) {
+  if (qtelPtr->state != QTEL_STATE_ACTIVE || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) {
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING);
     return QTEL_ERROR_PENDING;
   }
@@ -119,7 +119,7 @@ QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef *sockMgr)
   status = QTEL_NET_ActivatePDP(&qtelPtr->net, sockMgr->contextId);
   if (status == QTEL_OK)
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVE);
-  else if (qtelPtr->state != QTEL_STATE_ACTIVE) {
+  else if (qtelPtr->state != QTEL_STATE_ACTIVE || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) {
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING);
     return QTEL_ERROR_PENDING;
   }

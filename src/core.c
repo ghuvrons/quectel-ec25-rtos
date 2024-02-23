@@ -122,9 +122,6 @@ QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
 
   // check response
   if (qtelPtr->network_status == 1 || qtelPtr->network_status == 5) {
-    if (qtelPtr->state <= QTEL_STATE_CHECK_NETWORK) {
-      QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
-    }
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
   }
   else {
@@ -160,15 +157,12 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
 
   // check response
   if (qtelPtr->GPRS_network_status == 1 || qtelPtr->GPRS_network_status == 5) {
-    if (qtelPtr->state <= QTEL_STATE_CHECK_NETWORK) {
-      QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
-    }
-    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
+    QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
   }
   else {
     if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
       qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
-    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
+    QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
   }
 
   return QTEL_OK;

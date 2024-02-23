@@ -17,15 +17,15 @@
 /* PDP Context ID */
 
 #ifndef QTEL_CID_SOCKET
-#define QTEL_CID_SOCKET 2
+#define QTEL_CID_SOCKET 4
 #endif
 
 #ifndef QTEL_CID_HTTP
-#define QTEL_CID_HTTP   3
+#define QTEL_CID_HTTP   2
 #endif
 
 #ifndef QTEL_CID_NTP
-#define QTEL_CID_NTP    4
+#define QTEL_CID_NTP    3
 #endif
 
 /* SSL Context ID */

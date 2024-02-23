@@ -23,6 +23,7 @@ QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef *qtelNet, void *qtelPtr)
     return QTEL_ERROR;
 
   qtelNet->qtel = qtelPtr;
+  qtelNet->state = 0;
 
   return QTEL_OK;
 }
@@ -38,6 +39,78 @@ void QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef *qtelNet, char *APN, char *user, 
     qtelNet->APN.user = user;
   if (strlen(pass) > 0)
     qtelNet->APN.pass = pass;
+}
+
+
+QTEL_Status_t QTEL_NET_OnReboot(QTEL_NET_HandlerTypeDef *qtelNet)
+{
+  QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
+
+#if QTEL_EN_FEATURE_GPS
+    QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_NON_ACTIVE);
+#endif /* QTEL_EN_FEATURE_GPS */
+
+#if QTEL_EN_FEATURE_SOCKET
+  QTEL_SockManager_OnReboot(&qtelPtr->socketManager);
+#endif /* QTEL_EN_FEATURE_SOCKET */
+
+  if (qtelNet->state > QTEL_NET_STATE_ACTIVATING_PENDING) {
+    qtelNet->state = QTEL_NET_STATE_ACTIVATING_PENDING;
+  }
+
+  return QTEL_OK;
+}
+
+
+QTEL_Status_t QTEL_NET_Activate(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t isActive)
+{
+  if (isActive)
+    QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_ACTIVATING);
+  else
+    QTEL_NET_SetState(qtelNet, QTEL_NET_STATE_NON_ACTIVE);
+
+  return QTEL_OK;
+}
+
+
+void QTEL_NET_SetState(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t newState)
+{
+  qtelNet->state = newState;
+  ((QTEL_HandlerTypeDef*) qtelNet->qtel)->rtos.eventSet(QTEL_RTOS_EVT_NET_NEW_STATE);
+}
+
+
+void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
+{
+  QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
+
+  switch (qtelNet->state) {
+  case QTEL_NET_STATE_NON_ACTIVE:
+    QTEL_SockManager_PDP_Deactivate(&qtelPtr->socketManager);
+    break;
+
+  case QTEL_NET_STATE_ACTIVATING:
+    if (qtelPtr->state != QTEL_STATE_ACTIVE) {
+      qtelNet->state = QTEL_NET_STATE_ACTIVATING_PENDING;
+      break;
+    }
+    qtelNet->state = QTEL_NET_STATE_ACTIVE;
+
+  case QTEL_NET_STATE_ACTIVE:
+#if QTEL_EN_FEATURE_GPS
+    if (qtelPtr->gps.isEnable && qtelPtr->gps.state == QTEL_GPS_STATE_NON_ACTIVE) {
+      QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
+    }
+#endif /* QTEL_EN_FEATURE_GPS */
+#if QTEL_EN_FEATURE_SOCKET
+    if (qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) {
+      QTEL_SockManager_SetState(&qtelPtr->socketManager, QTEL_SOCKH_STATE_PDP_ACTIVATING);
+    }
+#endif /* QTEL_EN_FEATURE_SOCKET */
+    break;
+
+  default: break;
+  }
 }
 
 
@@ -88,30 +161,30 @@ endCmd:
 }
 
 
+AT_Data_t respDataCheckPDP[16][3];
 QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId, uint8_t *isActive)
 {
   if (contextId > 16) return QTEL_ERROR;
 
   AT_Status_t status;
   QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
-  AT_Data_t respData[16][3];
 
-  memset(respData, 0, sizeof(respData));
+  memset(respDataCheckPDP, 0, sizeof(respDataCheckPDP));
 
   QTEL_Debug("check PDP Ctx %d", contextId);
 
   // check
-  status = AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respData[0][0]);
+  status = AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respDataCheckPDP[0][0]);
   if (status != AT_OK) {
     return (QTEL_Status_t) status;
   }
 
   *isActive = 0;
   for (uint8_t i = 0; i < 16; i++) {
-    if (respData[i][0].type == AT_NUMBER &&
-        respData[i][0].value.number == contextId)
+    if (respDataCheckPDP[i][0].type == AT_NUMBER &&
+        respDataCheckPDP[i][0].value.number == contextId)
     {
-      if (respData[i][1].value.number == 1) {
+      if (respDataCheckPDP[i][1].value.number == 1) {
         *isActive = 1;
         QTEL_Debug("check PDP Ctx %d actived", contextId);
       }

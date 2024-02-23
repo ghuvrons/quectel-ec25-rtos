@@ -159,9 +159,11 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
 
+  if (!qtelGps->isEnable) return;
+
   switch (qtelGps->state) {
   case QTEL_GPS_STATE_NON_ACTIVE:
-    if (qtelPtr->state >= QTEL_STATE_ACTIVE) {
+    if (qtelPtr->state >= QTEL_STATE_ACTIVE && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE) {
       if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 2000)) {
         QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
       }

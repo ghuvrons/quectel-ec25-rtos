@@ -113,6 +113,7 @@ typedef struct {
 
 typedef struct QTEL_GPS_HandlerTypeDef {
   void                *qtel;
+  uint8_t             isEnable;
   QTEL_GPS_Mode_t     mode;
   uint8_t             state;
   uint32_t            stateTick;

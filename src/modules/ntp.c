@@ -25,7 +25,7 @@ QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *qtelNTP, void *qtelPtr)
     return QTEL_ERROR;
 
   qtelNTP->qtel = qtelPtr;
-  qtelNTP->contextId = 3;
+  qtelNTP->contextId = QTEL_CID_NTP;
   qtelNTP->status = 0;
   qtelNTP->syncTick = 0;
   qtelNTP->config.resyncInterval = 24*3600;
@@ -57,7 +57,7 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
 
-  if (qtelPtr->state != QTEL_STATE_ACTIVE) return QTEL_ERROR;
+  if (qtelPtr->state != QTEL_STATE_ACTIVE || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) return QTEL_ERROR;
 
   if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
     if ((qtelPtr->getTick() - qtelNTP->syncTick) > qtelNTP->config.resyncInterval)

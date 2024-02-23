@@ -13,34 +13,34 @@
 #if QTEL_EN_FEATURE_NET
 
 #include <quectel-ec25/types.h>
-
-
-#define QTEL_NET_STATUS_CTX_CONFIGURED   0x01
-#define QTEL_NET_STATUS_CTX_ACTIVED      0x02
-#define QTEL_NET_STATUS_GPRS_REGISTERED  0x10
-#define QTEL_NET_STATUS_GPRS_ROAMING     0x20
-#define QTEL_NET_STATUS_NTP_WAS_SET      0x40
-#define QTEL_NET_STATUS_NTP_WAS_SYNCED   0x80
+typedef enum {
+  QTEL_NET_STATE_NON_ACTIVE,
+  QTEL_NET_STATE_ACTIVATING_PENDING,
+  QTEL_NET_STATE_ACTIVATING,
+  QTEL_NET_STATE_ACTIVE,
+} QTEL_NET_State_t;
 
 typedef struct {
-  void      *qtel;         // QTEL_HandlerTypeDef
-  uint16_t  isCtxConfigured;
+  void              *qtel;         // QTEL_HandlerTypeDef
+  QTEL_NET_State_t  state;
+  uint16_t          isCtxConfigured;
 
   struct {
     char *APN;
     char *user;
     char *pass;
   } APN;
-
-  void (*onOpening)(void);
-  void (*onOpened)(void);
-  void (*onOpenError)(void);
-  void (*onClosed)(void);
 } QTEL_NET_HandlerTypeDef;
 
 
 QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef*, void *hsim);
 void          QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef*, char *APN, char *user, char *pass);
+
+QTEL_Status_t QTEL_NET_OnReboot(QTEL_NET_HandlerTypeDef*);
+QTEL_Status_t QTEL_NET_Activate(QTEL_NET_HandlerTypeDef*, uint8_t isActive);
+
+void QTEL_NET_SetState(QTEL_NET_HandlerTypeDef*, uint8_t newState);
+void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef*);
 
 // Context
 

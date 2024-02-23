@@ -31,7 +31,7 @@ QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
   qtelhttp->qtel = qtelPtr;
   qtelhttp->state = QTEL_HTTP_STATE_NON_ACTIVE;
   qtelhttp->stateTick = 0;
-  qtelhttp->contextId = 2;
+  qtelhttp->contextId = QTEL_CID_HTTP;
 
   AT_Data_t *httpActionResp = malloc(sizeof(AT_Data_t)*3);
   memset(httpActionResp, 0, sizeof(AT_Data_t)*3);

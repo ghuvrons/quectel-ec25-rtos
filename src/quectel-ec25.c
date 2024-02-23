@@ -124,19 +124,11 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
         onNewState(qtelPtr);
       }
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_ACTIVED)) {
-#if QTEL_EN_FEATURE_GPS
-        if (qtelPtr->gps.state == QTEL_GPS_STATE_NON_ACTIVE) {
-          QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
-        }
-#endif /* QTEL_EN_FEATURE_GPS */
-
-#if QTEL_EN_FEATURE_SOCKET
-        if (qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) {
-          QTEL_SockManager_SetState(&qtelPtr->socketManager, QTEL_SOCKH_STATE_PDP_ACTIVATING);
-        }
-#endif /* QTEL_EN_FEATURE_SOCKET */
         if (qtelPtr->callbacks.onActive) qtelPtr->callbacks.onActive();
       }
+
+      if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_NET_NEW_STATE))
+        QTEL_NET_OnNewState(&qtelPtr->net);
 
 #if QTEL_EN_FEATURE_SOCKET
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_SOCKH_NEW_EVT)) {
@@ -248,12 +240,8 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED);
 #endif /* QTEL_EN_FEATURE_NTP */
 
-#if QTEL_EN_FEATURE_GPS
-    QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_NON_ACTIVE);
-#endif /* QTEL_EN_FEATURE_GPS */
-
-#if QTEL_EN_FEATURE_SOCKET
-    QTEL_SockManager_OnReboot(&qtelPtr->socketManager);
+#if QTEL_EN_FEATURE_NET
+    QTEL_NET_OnReboot(&qtelPtr->net);
 #endif /* QTEL_EN_FEATURE_SOCKET */
 
     qtelPtr->delay(1000);
@@ -364,6 +352,10 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_GetOperator(qtelPtr);
     QTEL_CheckQENG(qtelPtr);
     QTEL_Debug("connected to %s", qtelPtr->registeredOperator);
+
+    if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING) {
+      QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+    }
     break;
 
   default: break;
