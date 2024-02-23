@@ -44,7 +44,9 @@ void QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef *qtelNet, char *APN, char *user, 
 
 QTEL_Status_t QTEL_NET_OnReboot(QTEL_NET_HandlerTypeDef *qtelNet)
 {
+#if QTEL_EN_FEATURE_GPS|QTEL_EN_FEATURE_SOCKET
   QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
+#endif
 
 #if QTEL_EN_FEATURE_GPS
     QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_NON_ACTIVE);
@@ -86,7 +88,9 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
 
   switch (qtelNet->state) {
   case QTEL_NET_STATE_NON_ACTIVE:
+#if QTEL_EN_FEATURE_SOCKET
     QTEL_SockManager_PDP_Deactivate(&qtelPtr->socketManager);
+#endif /* QTEL_EN_FEATURE_SOCKET */
     break;
 
   case QTEL_NET_STATE_ACTIVATING:
