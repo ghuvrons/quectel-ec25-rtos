@@ -147,7 +147,7 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
 
   while (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_HTTP_NEW_STATE,
                                  &notifEvent,
-                                 timeout) == AT_OK)
+                                 timeout) == QTEL_OK)
   {
     if (!QTEL_BITS_IS(notifEvent, QTEL_RTOS_EVT_HTTP_NEW_STATE)) goto endCmd;
 
