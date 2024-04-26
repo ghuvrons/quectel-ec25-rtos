@@ -291,6 +291,9 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
         isNeedReset = 1;
       }
 
+      // auto save data counter
+      AT_Command(&qtelPtr->atCmd, "+QAUGDCNT=60", 0, 0, 0, 0);
+
       AT_Command(&qtelPtr->atCmd, "+CREG=1", 0, 0, 0, 0);
       AT_Command(&qtelPtr->atCmd, "+CGREG=1", 0, 0, 0, 0);
       QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED);
