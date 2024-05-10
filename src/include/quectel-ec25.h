@@ -114,6 +114,14 @@ typedef struct QTEL_HandlerTypeDef {
   uint8_t  isRespConnectHandle;
   uint8_t  respConnectBuffer[QTEL_RESP_CONNECT_BUFFER_SIZE];
   uint16_t respConnectBufferLen;
+
+#if QTEL_DEBUG
+  struct {
+    uint32_t rebootCounter;
+    uint32_t poweredDownCounter;
+    uint32_t tcpClosedByServerCounter;
+  } debug;
+#endif
 } QTEL_HandlerTypeDef;
 
 

@@ -230,7 +230,11 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
   switch (qtelPtr->state) {
   case QTEL_STATE_REBOOT:
+#if QTEL_DEBUG
     QTEL_Debug("rebooting");
+    qtelPtr->debug.rebootCounter += 1;
+#endif
+
     qtelPtr->signal = 0;
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED | QTEL_STATUS_SIM_READY | QTEL_STATUS_NET_REGISTERED | QTEL_STATUS_GPRS_REGISTERED);
 
@@ -665,5 +669,8 @@ static void onPoweredDown(void *app, uint8_t *_, uint16_t __)
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
   QTEL_Debug("Powered Down");
+#if QTEL_DEBUG
+  qtelPtr->debug.poweredDownCounter += 1;
+#endif
   QTEL_Reboot(qtelPtr);
 }
