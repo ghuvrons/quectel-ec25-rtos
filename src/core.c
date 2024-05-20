@@ -199,13 +199,13 @@ QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef *qtelPtr)
   if (status != AT_OK) {
     return (QTEL_Status_t) status;
   }
-  if (respData[0].value.number >= 0 && respData[0].value.number < 31) {
-    qtelPtr->signal = (uint8_t)(respData[0].value.number * 10 / 3);
+  if (respData[0].value.number >= 0 && respData[0].value.number <= 31) {
+    qtelPtr->signal = (uint8_t)(respData[0].value.number * 100 / 31);
   }
-  else if (respData[0].value.number >= 100 && respData[0].value.number < 190) {
-    qtelPtr->signal = (uint8_t)((respData[0].value.number - 100) * 10 / 9);
+  else if (respData[0].value.number >= 100 && respData[0].value.number <= 191) {
+    qtelPtr->signal = (uint8_t)((respData[0].value.number - 100) * 100 / 91);
   }
-  else {
+  else if (respData[0].value.number == 99 || respData[0].value.number == 199) {
     qtelPtr->signal = 0;
   }
 

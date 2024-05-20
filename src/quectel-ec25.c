@@ -230,7 +230,11 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
   switch (qtelPtr->state) {
   case QTEL_STATE_REBOOT:
+#if QTEL_DEBUG
     QTEL_Debug("rebooting");
+    qtelPtr->debug.rebootCounter += 1;
+#endif
+
     qtelPtr->signal = 0;
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED | QTEL_STATUS_SIM_READY | QTEL_STATUS_NET_REGISTERED | QTEL_STATUS_GPRS_REGISTERED);
 
@@ -290,6 +294,9 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
         AT_Command(&qtelPtr->atCmd, "+QCFG=\"urc/poweron\",0", 0, 0, 0, 0);
         isNeedReset = 1;
       }
+
+      // auto save data counter
+      AT_Command(&qtelPtr->atCmd, "+QAUGDCNT=60", 0, 0, 0, 0);
 
       AT_Command(&qtelPtr->atCmd, "+CREG=1", 0, 0, 0, 0);
       AT_Command(&qtelPtr->atCmd, "+CGREG=1", 0, 0, 0, 0);
@@ -662,5 +669,8 @@ static void onPoweredDown(void *app, uint8_t *_, uint16_t __)
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
   QTEL_Debug("Powered Down");
+#if QTEL_DEBUG
+  qtelPtr->debug.poweredDownCounter += 1;
+#endif
   QTEL_Reboot(qtelPtr);
 }

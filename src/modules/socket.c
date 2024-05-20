@@ -206,6 +206,9 @@ static void onSocketEvent(void *app, AT_Data_t *resp)
   else if (strncmp(evt, "closed", 6) == 0) {
     sock->state = QTEL_SOCK_STATE_CLOSE;
     QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_CLOSED);
+#if QTEL_DEBUG
+    qtelPtr->debug.tcpClosedByServerCounter += 1;
+#endif
   }
 }
 
