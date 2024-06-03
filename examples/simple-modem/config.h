@@ -12,8 +12,8 @@
 #define QTEL_EN_FEATURE_NTP    1
 #define QTEL_EN_FEATURE_GPS    1
 
-#ifndef DEV_UART_MODEM
-#define DEV_UART_MODEM    huart3
+#ifndef UART_MODEM_HANDLER
+#define UART_MODEM_HANDLER    huart3
 #endif
 
 #endif /* QUECTEL_EC25_RTOS_EXAMPLES_SIMPLE_MODEM_CONFIG_H_ */

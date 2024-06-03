@@ -31,7 +31,7 @@ static uint8_t  MDM_TxBuffer[MDM_TX_BUFFER_SZ];
 static uint8_t  MDM_RxBuffer[MDM_RX_BUFFER_SZ];
 
 static STRM_handlerTypeDef mdm_hdma_streamer = {
-    .huart = &DEV_UART_MODEM
+    .huart = &UART_MODEM_HANDLER
 };
 
 
