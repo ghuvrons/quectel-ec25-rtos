@@ -146,7 +146,7 @@ QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t *sock)
     break;
 
   case QTEL_SOCK_STATE_CLOSE:
-    if (sock->tick.reconnDelay != 0 && QTEL_IsTimeout(qtelPtr, sock->tick.reconnDelay, 2000)) {
+    if (sock->config.autoReconnect && sock->tick.reconnDelay != 0 && QTEL_IsTimeout(qtelPtr, sock->tick.reconnDelay, 2000)) {
       sockOpen(sock);
     }
     break;
@@ -178,11 +178,9 @@ QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t *sock,
   sock->linkNum = -1;
   sock->socketManager = &qtelPtr->socketManager;
 
-  if (sock->config.autoReconnect) {
-    Get_Available_LinkNum(sock->socketManager, sock);
-    if (sock->linkNum < 0) return QTEL_ERROR;
-    sock->socketManager->sockets[sock->linkNum] = sock;
-  }
+  Get_Available_LinkNum(sock->socketManager, sock);
+  if (sock->linkNum < 0) return QTEL_ERROR;
+  sock->socketManager->sockets[sock->linkNum] = sock;
 
   QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENING);
 
@@ -315,13 +313,16 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
   }
 
   sock->tick.connecting = qtelPtr->getTick();
-  sock->listeners.onConnecting();
+  if (sock->listeners.onConnecting)
+    sock->listeners.onConnecting();
 
   return QTEL_OK;
 
 connectingError:
   sock->tick.reconnDelay = qtelPtr->getTick();
   sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
+  if (sock->listeners.onConnectError)
+    sock->listeners.onConnectError();
   return QTEL_ERROR;
 }
 

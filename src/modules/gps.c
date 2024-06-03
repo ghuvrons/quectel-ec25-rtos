@@ -46,6 +46,7 @@ static const QTEL_GPS_Config_t defaultConfig = {
                         QTEL_AGPS_MODE_AGLONASS_UP_MSA_4G       |
                         QTEL_AGPS_MODE_AGLONASS_CP_MSB_4G       |
                         QTEL_AGPS_MODE_AGLONASS_CP_MSA_4G,
+  .hyridMaxAllowedMode= QTEL_GPS_MS_ASSISTED,
   .AGPS_Protocols     = QTEL_AGPS_PTC_USER_PLANE_LPP |
                         QTEL_AGPS_PTC_CONTROL_PLANE_LPP,
   .AGLONASS_Protocols = QTEL_AGLONASS_PTC_CONTROL_PLANE_RRLP  |
@@ -83,14 +84,13 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
   qtelGps->stateTick = 0;
 
   if (qtelGps->isConfigured != QTEL_GPS_CONFIG_KEY) {
-    qtelGps->isConfigured = QTEL_GPS_CONFIG_KEY;
-    memcpy(&qtelGps->config, &defaultConfig, sizeof(QTEL_GPS_Config_t));
+    QTEL_GPS_SetupConfig(qtelGps, &defaultConfig);
   }
 
   return QTEL_OK;
 }
 
-void QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_Config_t *config)
+void QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef *qtelGps, const QTEL_GPS_Config_t *config)
 {
   qtelGps->isConfigured = QTEL_GPS_CONFIG_KEY;
   memcpy(&qtelGps->config, config, sizeof(QTEL_GPS_Config_t));
@@ -119,18 +119,18 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
       break;
     }
 
-#if QTEL_EN_FEATURE_GPS_ONEXTRA
     if (!QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
       QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_WAITING_NTP);
       break;
     }
+#if QTEL_EN_FEATURE_GPS_ONEXTRA
     if (configureOneXTRA(qtelGps) != QTEL_OK) {
       break;
     }
 #endif /* QTEL_EN_FEATURE_GPS_ONEXTRA */
 
     if (startGPS(qtelGps, QTEL_GPS_MS_BASED) != QTEL_OK) {
-      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
+      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
       break;
     }
 
@@ -142,6 +142,8 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
     break;
 
   case QTEL_GPS_STATE_FIXED:
+    QTEL_Debug("[GPS] fixed");
+    qtelGps->acquireErrorCounter = 0;
     qtelGps->getLocTick = qtelGps->stateTick;
     if (qtelGps->mode != QTEL_GPS_STANDALONE) {
       // change mode to stand-alone
@@ -220,8 +222,12 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
     if (QTEL_IsTimeout(qtelPtr, qtelGps->getLocTick, 5000)) {
       qtelGps->getLocTick = qtelPtr->getTick();
       if (acquirePosition(qtelGps) != QTEL_OK) {
-        startGPS(qtelGps, QTEL_GPS_MS_BASED);
-        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXING);
+        qtelGps->acquireErrorCounter += 1;
+        if (qtelGps->acquireErrorCounter > 5) {
+          // re-fixing
+          startGPS(qtelGps, QTEL_GPS_MS_BASED);
+          QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXING);
+        }
         break;
       }
     }
@@ -233,6 +239,21 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
   return;
 }
 
+
+void QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef *qtelGps)
+{
+  QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
+  qtelGps->isEnable = 1;
+
+  if (qtelPtr->state >= QTEL_STATE_ACTIVE && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE) {
+    QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
+  }
+}
+
+const QTEL_GPS_Config_t* QTEL_GPS_GetDefaultConfig(void)
+{
+  return &defaultConfig;
+}
 
 static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
@@ -336,15 +357,22 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
       AT_Number(0),
   };
 
+  if (qtelGps->config.hyridMaxAllowedMode != 0 && mode > qtelGps->config.hyridMaxAllowedMode) {
+    mode = qtelGps->config.hyridMaxAllowedMode;
+  }
+
   if (AT_Check(&qtelPtr->atCmd, "+QGPS", 1, respData) == AT_OK) {
     if (respData[0].type == AT_NUMBER && respData[0].value.number == 0) {
+      QTEL_Debug("[GPS] start with mode %d", (int) mode);
       goto activateGPS;
+    } else {
+      QTEL_Debug("[GPS] switch to mode %d", (int) mode);
     }
   }
 
   stopGPS(qtelGps);
 
-  activateGPS:
+activateGPS:
   if (AT_Command(&qtelPtr->atCmd, "+QGPS", 1, paramData, 0, 0) != AT_OK)
     return QTEL_ERROR;
 
@@ -367,14 +395,18 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
       AT_Buffer(xtratimeStr, sizeof(xtratimeStr)),
   };
 
-
   if (qtelGps->config.oneXTRA.dataURL != 0) {
-    AT_DataSetNumber(&paramData[0], 1);
-    if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRA", 1, paramData, 0, 0) != AT_OK)
+    if (AT_Check(&qtelPtr->atCmd, "+QGPSXTRA", 1, respData) != AT_OK)
       return QTEL_ERROR;
+
+    if (respData[0].type != AT_NUMBER || respData[0].value.number != 1) {
+      AT_DataSetNumber(&paramData[0], 1);
+      if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRA", 1, paramData, 0, 0) != AT_OK)
+        return QTEL_ERROR;
+    }
 
     if (AT_Check(&qtelPtr->atCmd, "+QGPSXTRADATA", 2, respData) != AT_OK)
-      return QTEL_ERROR;
+      goto handleError;
 
     if (respData[0].type == AT_NUMBER &&
         respData[1].type == AT_STRING &&
@@ -411,7 +443,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
                                   &resp,
                                   60000) != QTEL_OK)
     {
-      return QTEL_ERROR;
+      goto handleError;
     }
 
     AT_DataSetNumber(&paramData[0], 0);
@@ -420,14 +452,31 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     AT_DataSetNumber(&paramData[3], 1);
     AT_DataSetNumber(&paramData[4], 3500);
     if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRATIME", 5, paramData, 0, 0) != AT_OK)
-      return QTEL_ERROR;
+      goto handleError;
 
     AT_DataSetString(&paramData[0], QTEL_ONEXTRA_TMP_FILE);
     if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRADATA", 1, paramData, 0, 0) != AT_OK)
+      goto handleError;
+  }
+  else {
+    // disable oneXtra
+    if (AT_Check(&qtelPtr->atCmd, "+QGPSXTRA", 1, respData) != AT_OK)
       return QTEL_ERROR;
+
+    if (respData[0].type != AT_NUMBER || respData[0].value.number != 0) {
+      AT_DataSetNumber(&paramData[0], 0);
+      if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRA", 1, paramData, 0, 0) != AT_OK)
+        return QTEL_ERROR;
+    }
   }
 
   return QTEL_OK;
+
+handleError:
+  // disable oneXtra
+  AT_DataSetNumber(&paramData[0], 0);
+  AT_Command(&qtelPtr->atCmd, "+QGPSXTRA", 1, paramData, 0, 0);
+  return QTEL_ERROR;
 }
 #endif /* QTEL_EN_FEATURE_GPS_ONEXTRA */
 

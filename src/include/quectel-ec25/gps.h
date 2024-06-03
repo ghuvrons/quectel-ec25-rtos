@@ -95,6 +95,7 @@ typedef struct {
   uint16_t                  NMEA;
   QTEL_GPS_Plane_Mode_t     planeMode;
   uint32_t                  AGPS_Mode;
+  QTEL_GPS_Mode_t           hyridMaxAllowedMode; // default 0 for all mode is allowed
   uint8_t                   AGPS_Protocols;
   uint16_t                  AGLONASS_Protocols;
 
@@ -120,6 +121,7 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   uint32_t            getLocTick;
   uint8_t             isConfigured;
   QTEL_GPS_Config_t   config;
+  uint8_t             acquireErrorCounter;
 
   struct {
     float latitude;
@@ -133,12 +135,14 @@ typedef struct QTEL_GPS_HandlerTypeDef {
 } QTEL_GPS_HandlerTypeDef;
 
 QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef*, void *qtelPtr);
-void          QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_Config_t*);
+void          QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef*, const QTEL_GPS_Config_t*);
 void          QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef*, uint8_t newState);
 void          QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef*);
 QTEL_Status_t QTEL_GPS_SetupConfiguration(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_Config_t*);
 void          QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef*);
-QTEL_Status_t QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef*);
+void          QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef*);
+
+const QTEL_GPS_Config_t* QTEL_GPS_GetDefaultConfig(void);
 
 #endif /* QTEL_EN_FEATURE_GPS */
 #endif /* QUECTEL_EC25_GPS_H_ */
