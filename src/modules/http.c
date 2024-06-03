@@ -59,6 +59,7 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
   uint32_t            contentRead = 0;
   uint32_t            notifEvent;
   AT_Data_t           paramData[3];
+  uint8_t             isFileSavedInRAM = 0;
 
   if (req->url == 0 ||
       req->method >= QTEL_HTTP_METHOD_MAX)
@@ -145,9 +146,9 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
 
   qtelhttp->state = QTEL_HTTP_STATE_REQUESTING;
 
-  while (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_HTTP_NEW_STATE,
+  while ((status = qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_HTTP_NEW_STATE,
                                  &notifEvent,
-                                 timeout) == QTEL_OK)
+                                 timeout+2000)) == QTEL_OK)
   {
     if (!QTEL_BITS_IS(notifEvent, QTEL_RTOS_EVT_HTTP_NEW_STATE)) goto endCmd;
 
@@ -158,10 +159,15 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
       AT_DataSetNumber(&paramData[1], 100); // timeout
       if (AT_Command(&qtelPtr->atCmd, "+QHTTPREADFILE", 2, paramData, 0, 0) != AT_OK)
         goto endCmd;
+
+      if (req->saveto == 0) isFileSavedInRAM = 1;
       break;
 
     case QTEL_HTTP_STATE_TMP_FILE_READY:
-      if (resp->err != 0) goto endCmd;
+      if (resp->err != 0) {
+        status = ERR_ERROR;
+        goto endCmd;
+      }
       if (req->saveto != 0) goto endCmd;
 
       if (resp->contentBuffer == 0 ||
@@ -188,8 +194,10 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
 endCmd:
   if (fn != -1) {
     QTEL_FILE_Close(&qtelPtr->file, fn);
-    QTEL_FILE_RemoveFile(&qtelPtr->file, FILENAME_TMP);
   }
+
+  if (isFileSavedInRAM) QTEL_FILE_RemoveFile(&qtelPtr->file, FILENAME_TMP);
+
   qtelhttp->state = QTEL_HTTP_STATE_AVAILABLE;
   return status;
 }
