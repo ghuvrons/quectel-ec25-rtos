@@ -12,13 +12,15 @@
 #include <quectel-ec25/socket.h>
 #include <at-command.h>
 
-#define QTEL_STATUS_ATOK            0x01
-#define QTEL_STATUS_CONFIGURED      0x02
-#define QTEL_STATUS_SIM_READY       0x04
-#define QTEL_STATUS_NET_REGISTERED  0x08
-#define QTEL_STATUS_GPRS_REGISTERED 0x10
+#define QTEL_STATUS_CONFIGURED      0x01
+#define QTEL_STATUS_SIM_READY       0x02
+#define QTEL_STATUS_NET_REGISTERED  0x04
+#define QTEL_STATUS_GPRS_REGISTERED 0x08
+#define QTEL_STATUS_LTE_REGISTERED  0x10
 #define QTEL_STATUS_NET_REGISTERING 0x20
-#define QTEL_STATUS_CMD_RUNNING     0x80
+#define QTEL_STATUS_RESP_BUF_LOCK   0x40
+
+#define RESP_BUF_LOCK_TIMEOUT 60000
 
 typedef enum {
   QTEL_STATE_NON_ACTIVE,
@@ -69,6 +71,7 @@ typedef struct QTEL_HandlerTypeDef {
 
   uint8_t network_status;
   uint8_t GPRS_network_status;
+  uint8_t LTE_network_status;
   const char *operator;
   char registeredOperator[QTEL_OPERATOR_BUFFER_SIZE+1];
   char SIM_SN[QTEL_SIM_SN_BUFFER_SIZE+1];

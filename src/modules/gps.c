@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define QTEL_GPS_CONFIG_KEY   0xAE
+#define QTEL_GPS_CONFIG_KEY   0xAE0114F3
 #define QTEL_ONEXTRA_TMP_FILE "RAM:xtra2.bin"
 
 static const QTEL_GPS_Config_t defaultConfig = {
@@ -83,7 +83,7 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
   qtelGps->state = QTEL_GPS_STATE_NON_ACTIVE;
   qtelGps->stateTick = 0;
 
-  if (qtelGps->isConfigured != QTEL_GPS_CONFIG_KEY) {
+  if (qtelGps->config.key != QTEL_GPS_CONFIG_KEY) {
     QTEL_GPS_SetupConfig(qtelGps, &defaultConfig);
   }
 
@@ -92,8 +92,8 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
 
 void QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef *qtelGps, const QTEL_GPS_Config_t *config)
 {
-  qtelGps->isConfigured = QTEL_GPS_CONFIG_KEY;
   memcpy(&qtelGps->config, config, sizeof(QTEL_GPS_Config_t));
+  qtelGps->config.key = QTEL_GPS_CONFIG_KEY;
 }
 
 void QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef *qtelGps, uint8_t newState)
@@ -111,6 +111,7 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
 
   switch (qtelGps->state) {
   case QTEL_GPS_STATE_NON_ACTIVE:
+    qtelGps->isConfigured = 0;
     break;
 
   case QTEL_GPS_STATE_SETUP:
@@ -161,11 +162,12 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
 
+  if (qtelPtr->state < QTEL_STATE_ACTIVE) return;
   if (!qtelGps->isEnable) return;
 
   switch (qtelGps->state) {
   case QTEL_GPS_STATE_NON_ACTIVE:
-    if (qtelPtr->state >= QTEL_STATE_ACTIVE && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE) {
+    if (qtelPtr->state >= QTEL_STATE_ACTIVE) {
       if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 2000)) {
         QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
       }
@@ -245,7 +247,7 @@ void QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef *qtelGps)
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
   qtelGps->isEnable = 1;
 
-  if (qtelPtr->state >= QTEL_STATE_ACTIVE && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE) {
+  if (qtelPtr->state >= QTEL_STATE_ACTIVE) {
     QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
   }
 }
@@ -266,6 +268,8 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
       AT_Number(0),
       AT_Number(0),
   };
+
+  if (qtelGps->isConfigured) return QTEL_OK;
 
   AT_DataSetString(&paramData[0], "gnssconfig");
   AT_DataSetNumber(&paramData[1], 1);
@@ -328,6 +332,7 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
   }
 
+  qtelGps->isConfigured = 1;
   status = QTEL_OK;
 
 endCmd:

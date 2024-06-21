@@ -19,6 +19,7 @@ QTEL_Status_t QTEL_GetError(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_CheckSIMCard(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef*);
+QTEL_Status_t QTEL_CheckLTENetwork(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_GetTime(QTEL_HandlerTypeDef*, QTEL_Datetime_t*);
 QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_SetOperator(QTEL_HandlerTypeDef*, const char *operator);

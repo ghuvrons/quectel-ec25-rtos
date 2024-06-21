@@ -90,6 +90,7 @@ typedef enum {
 
 
 typedef struct {
+  uint32_t                  key;
   uint16_t                  accuracy;
   QTEL_GPS_NMEARate_t       outputRate;
   uint16_t                  NMEA;

@@ -5,9 +5,8 @@
  *      Author: janoko
  */
 
-#include <quectel-ec25/ntp.h>
 #if QTEL_EN_FEATURE_NTP
-
+#include <quectel-ec25/ntp.h>
 #include "../include/quectel-ec25.h"
 #include <quectel-ec25/core.h>
 #include <quectel-ec25/net.h>
@@ -57,20 +56,21 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
 
-  if (qtelPtr->state != QTEL_STATE_ACTIVE || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) return QTEL_ERROR;
+  if (qtelPtr->state < QTEL_STATE_ACTIVE || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) return QTEL_ERROR;
 
-  if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
+  if (qtelNTP->syncTick == 0) {
+    QTEL_NTP_Sync(qtelNTP);
+  }
+  else if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
     if ((qtelPtr->getTick() - qtelNTP->syncTick) > qtelNTP->config.resyncInterval)
       QTEL_NTP_Sync(qtelNTP);
   }
-  else if (!QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCING)) {
+  else if (!QTEL_IS_STATUS(qtelNTP, QTEL_NTP_IS_SYNCING)) {
     if ((qtelPtr->getTick() - qtelNTP->syncTick) > qtelNTP->config.retryInterval)
       QTEL_NTP_Sync(qtelNTP);
   }
-  else {
-    if (qtelNTP->syncTick == 0 || (qtelPtr->getTick() - qtelNTP->syncTick) > 60000)
+  else if ((qtelPtr->getTick() - qtelNTP->syncTick) > 60000)
       QTEL_NTP_Sync(qtelNTP);
-  }
 
   return QTEL_OK;
 }
@@ -93,19 +93,21 @@ QTEL_Status_t QTEL_NTP_Sync(QTEL_NTP_HandlerTypeDef *qtelNTP)
 
   if (QTEL_NET_ConfigurePDP(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
   {
+    qtelNTP->syncTick = qtelPtr->getTick();
     return QTEL_ERROR;
   }
   if (QTEL_NET_ActivatePDP(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
   {
+    qtelNTP->syncTick = qtelPtr->getTick();
     return QTEL_ERROR;
   }
 
   QTEL_Debug("[NTP] syncronizing...");
   AT_DataSetNumber(&paramData[0], qtelNTP->contextId);
   qtelNTP->syncTick = qtelPtr->getTick();
-  QTEL_SET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCING);
+  QTEL_SET_STATUS(&qtelPtr->ntp, QTEL_NTP_IS_SYNCING);
   if (AT_Command(&qtelPtr->atCmd, "+QNTP", 3, paramData, 0, 0) != AT_OK) {
-    QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCING);
+    QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_IS_SYNCING);
     return QTEL_ERROR;
   }
 
@@ -137,7 +139,7 @@ static void onSynced(void *app, AT_Data_t *data)
 {
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
-  QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCING);
+  QTEL_UNSET_STATUS(&qtelPtr->ntp, QTEL_NTP_IS_SYNCING);
   if (data->type == AT_NUMBER && data->value.number == 0) {
     QTEL_Debug("[NTP] synced");
     QTEL_SET_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED);

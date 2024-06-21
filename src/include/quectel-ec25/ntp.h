@@ -14,7 +14,7 @@
 
 #include <quectel-ec25/types.h>
 
-#define QTEL_NTP_WAS_SYNCING    0x01
+#define QTEL_NTP_IS_SYNCING    0x01
 #define QTEL_NTP_WAS_SYNCED     0x02
 
 typedef struct {

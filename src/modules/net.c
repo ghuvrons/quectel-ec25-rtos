@@ -49,7 +49,7 @@ QTEL_Status_t QTEL_NET_OnReboot(QTEL_NET_HandlerTypeDef *qtelNet)
 #endif
 
 #if QTEL_EN_FEATURE_GPS
-    QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_NON_ACTIVE);
+  QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_NON_ACTIVE);
 #endif /* QTEL_EN_FEATURE_GPS */
 
 #if QTEL_EN_FEATURE_SOCKET
@@ -94,7 +94,10 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
     break;
 
   case QTEL_NET_STATE_ACTIVATING:
-    if (qtelPtr->state != QTEL_STATE_ACTIVE) {
+    if (qtelPtr->state < QTEL_STATE_ACTIVE
+        && (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED) 
+            || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
+    {
       qtelNet->state = QTEL_NET_STATE_ACTIVATING_PENDING;
       break;
     }
@@ -209,6 +212,20 @@ QTEL_Status_t QTEL_NET_ActivatePDP(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t con
     AT_Number(contextId),
   };
 
+  uint32_t tick = qtelPtr->getTick();
+  while (QTEL_IS_STATUS(qtelNet, QTEL_NET_PDP_ACTIVATING)) {
+    if ((qtelPtr->getTick() - tick) > 160000) {
+      return QTEL_ERROR;
+    }
+    qtelPtr->delay(1);
+  }
+  QTEL_SET_STATUS(qtelNet, QTEL_NET_PDP_ACTIVATING);
+
+  if (qtelPtr->state < QTEL_STATE_ACTIVE) {
+    status = QTEL_ERROR;
+    goto endFunc;
+  }
+
   if (qtelPtr->net.APN.APN != NULL) {
     QTEL_NET_ConfigurePDP(qtelNet, contextId);
   }
@@ -217,14 +234,14 @@ checkContext:
 
   // check
   status = QTEL_NET_IsPDPActive(qtelNet, contextId, &isActive);
-  if (status != QTEL_OK) return status;
-  if (isActive) return QTEL_OK;
+  if (status != QTEL_OK || isActive) goto endFunc;
 
   commandSent++;
   if (commandSent > 3) {
     QTEL_Debug("trouble activate PDP Ctx %d", contextId);
     QTEL_Reboot(qtelPtr);
-    return QTEL_ERROR;
+    status = QTEL_ERROR;
+    goto endFunc;
   }
 
   // command
@@ -236,7 +253,8 @@ checkContext:
 
   if (atstatus == AT_RESPONSE_TIMEOUT) {
     QTEL_Reboot(qtelPtr);
-    return QTEL_ERROR;
+    status = QTEL_ERROR;
+    goto endFunc;
   }
 
   atstatus = AT_CommandWithTimeout(&qtelPtr->atCmd, "+QIDEACT",
@@ -244,10 +262,14 @@ checkContext:
 
   if (atstatus == AT_RESPONSE_TIMEOUT) {
     QTEL_Reboot(qtelPtr);
-    return QTEL_ERROR;
+    status = QTEL_ERROR;
+    goto endFunc;
   }
 
   goto checkContext;
+endFunc:
+  QTEL_UNSET_STATUS(qtelNet, QTEL_NET_PDP_ACTIVATING);
+  return status;
 }
 
 
@@ -290,6 +312,8 @@ QTEL_Status_t QTEL_NET_DataCounterReset(QTEL_NET_HandlerTypeDef *qtelNet)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelNet->qtel;
 
+  if (qtelPtr->state < QTEL_STATE_ACTIVE) return QTEL_ERROR;
+
   if (AT_Command(&qtelPtr->atCmd, "+QGDCNT=0", 0, 0, 0, 0) != AT_OK) return QTEL_ERROR;
   return QTEL_OK;
 }
@@ -304,7 +328,7 @@ QTEL_Status_t QTEL_NET_GetDataCounter(QTEL_NET_HandlerTypeDef *qtelNet, uint32_t
     AT_Number(0),
   };
 
-  if (qtelPtr->state != QTEL_STATE_ACTIVE) return QTEL_ERROR;
+  if (qtelPtr->state < QTEL_STATE_ACTIVE) return QTEL_ERROR;
 
   if (AT_Check(&qtelPtr->atCmd, "+QGDCNT", 2, respData) != AT_OK) return QTEL_ERROR;
 

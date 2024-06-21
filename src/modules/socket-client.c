@@ -264,6 +264,7 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
     return QTEL_ERROR;
   }
 
+  sock->tick.connecting = 0;
   sock->state = QTEL_SOCK_STATE_OPENING;
 
   if (sock->isSSL == 1)
@@ -428,7 +429,7 @@ static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
 
   if (sock->linkNum < 0) return QTEL_ERROR;
 
-  if (qtelPtr->state == QTEL_STATE_ACTIVE && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE) {
+  if (qtelPtr->state >= QTEL_STATE_ACTIVE && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE) {
     AT_Data_t paramData = AT_Number(sock->linkNum);
     if (sock->isSSL == 1) // USE SSL
     {

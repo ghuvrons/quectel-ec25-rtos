@@ -13,6 +13,9 @@
 #if QTEL_EN_FEATURE_NET
 
 #include <quectel-ec25/types.h>
+
+#define QTEL_NET_PDP_ACTIVATING 0x01
+
 typedef enum {
   QTEL_NET_STATE_NON_ACTIVE,
   QTEL_NET_STATE_ACTIVATING_PENDING,
@@ -23,6 +26,7 @@ typedef enum {
 typedef struct {
   void              *qtel;         // QTEL_HandlerTypeDef
   QTEL_NET_State_t  state;
+  uint8_t           status;
   uint16_t          isCtxConfigured;
 
   struct {
