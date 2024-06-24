@@ -32,7 +32,6 @@ static uint8_t getSockState(QTEL_SocketClient_t *sock);
 static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock);
 // SSL function
 static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock);
-static uint8_t getSockStateSSL(QTEL_SocketClient_t *sock);
 
 QTEL_Status_t QTEL_SockClient_Init(QTEL_SocketClient_t *sock, const char *host, uint16_t port, void *buffer)
 {
@@ -47,8 +46,6 @@ QTEL_Status_t QTEL_SockClient_Init(QTEL_SocketClient_t *sock, const char *host, 
 
   if (sock->config.timeout == 0)
     sock->config.timeout = QTEL_SOCK_DEFAULT_TO;
-  if (sock->config.reconnectingDelay == 0)
-    sock->config.reconnectingDelay = 5000;
 
   sock->linkNum = -1;
   sock->buffer = buffer;
@@ -71,7 +68,7 @@ QTEL_Status_t QTEL_SockClient_OnNetOpened(QTEL_SocketClient_t *sock)
 
 QTEL_Status_t QTEL_SockClient_OnReboot(QTEL_SocketClient_t *sock)
 {
-  QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
+  // QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
   if (sock->state == QTEL_SOCK_STATE_OPENING) {
     sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
@@ -81,7 +78,6 @@ QTEL_Status_t QTEL_SockClient_OnReboot(QTEL_SocketClient_t *sock)
   }
   if (sock->state == QTEL_SOCK_STATE_OPEN) {
     sock->state = QTEL_SOCK_STATE_CLOSE;
-    sock->tick.reconnDelay = qtelPtr->getTick();
     if (sock->listeners.onClosed) sock->listeners.onClosed();
   }
 
@@ -101,11 +97,15 @@ QTEL_Status_t QTEL_SockClient_SetEvents(QTEL_SocketClient_t *sock, uint8_t event
 
 QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t *sock)
 {
-  QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
+  // QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
   if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_OPENING)) {
     QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_OPENING);
     sockOpen(sock);
+  }
+  if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_OPENING_ERROR)) {
+    QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_OPENING_ERROR);
+    if (sock->listeners.onConnectingError) sock->listeners.onConnectingError();
   }
   if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_OPENED)) {
     QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_OPENED);
@@ -115,7 +115,6 @@ QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t *sock)
   if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_CLOSED)) {
     QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
     sock->state = QTEL_SOCK_STATE_CLOSE;
-    sock->tick.reconnDelay = qtelPtr->getTick();
     if (sock->listeners.onClosed) sock->listeners.onClosed();
   }
   if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_RECV_DATA_AVAILABLE)) {
@@ -140,15 +139,9 @@ QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t *sock)
     break;
 
   case QTEL_SOCK_STATE_OPEN_ERROR:
-    if (sock->tick.reconnDelay && QTEL_IsTimeout(qtelPtr, sock->tick.reconnDelay, 1000)) {
-      sockOpen(sock);
-    }
     break;
 
   case QTEL_SOCK_STATE_CLOSE:
-    if (sock->config.autoReconnect && sock->tick.reconnDelay != 0 && QTEL_IsTimeout(qtelPtr, sock->tick.reconnDelay, 2000)) {
-      sockOpen(sock);
-    }
     break;
 
   default: break;
@@ -197,7 +190,6 @@ QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t *sock)
   }
   else {
     sock->state = QTEL_SOCK_STATE_CLOSE;
-    sock->tick.reconnDelay = qtelPtr->getTick();
     QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
     qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
     return QTEL_OK;
@@ -242,12 +234,11 @@ uint16_t QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint
 static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
-  uint8_t sockState = 0;
   QTEL_Status_t status;
 
   if (sock->linkNum == -1) {
     Get_Available_LinkNum(sock->socketManager, sock);
-    if (sock->linkNum < 0) return QTEL_ERROR;
+    if (sock->linkNum < 0) goto connectingError;
     sock->socketManager->sockets[sock->linkNum] = sock;
   }
 
@@ -260,24 +251,13 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
       return QTEL_OK;
     }
 
-    sock->state = QTEL_SOCK_STATE_CLOSE;
-    return QTEL_ERROR;
+    goto connectingError;
   }
 
   sock->tick.connecting = 0;
   sock->state = QTEL_SOCK_STATE_OPENING;
 
-  if (sock->isSSL == 1)
-  {
-    configSSL(sock);
-    sockState = getSockStateSSL(sock);
-  }
-  else
-  {
-    sockState = getSockState(sock);
-  }
-
-  if (sockState != 0) {
+  if (getSockState(sock) != 0) {
     if (sockClose(sock) != QTEL_OK) {
       goto connectingError;
     }
@@ -285,6 +265,8 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 
   if (sock->isSSL == 1) // USE SSL
   {
+    configSSL(sock);
+
     AT_Data_t paramData[6] = {
         AT_Number(sock->socketManager->contextId),
         AT_Number(sock->socketManager->sslcontextId),
@@ -320,10 +302,9 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
   return QTEL_OK;
 
 connectingError:
-  sock->tick.reconnDelay = qtelPtr->getTick();
   sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
-  if (sock->listeners.onConnectError)
-    sock->listeners.onConnectError();
+  QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
+  qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   return QTEL_ERROR;
 }
 
@@ -354,45 +335,16 @@ static QTEL_Status_t sockReadRecvData(QTEL_SocketClient_t *sock)
   return QTEL_OK;
 }
 
-static uint8_t getSockStateSSL(QTEL_SocketClient_t *sock)
+static uint8_t getSockState(QTEL_SocketClient_t *sock)
 {
+  AT_Status_t atStatus;
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
   if (sock->linkNum < 0)
     return 0;
 
-  AT_Data_t paramData[2] = {
-      AT_Number(sock->linkNum),
-  };
-
-  uint8_t serviceTypestr[14];
-  uint8_t ipStr[17];
-  AT_Data_t respData[7] = {
-      AT_Number(0),                                      // number: clientID
-      AT_Buffer(serviceTypestr, sizeof(serviceTypestr)), // string: SSLClient
-      AT_Buffer(ipStr, sizeof(ipStr)),                   // string: IP
-      AT_Number(0),                                      // number: remote port
-      AT_Number(0),                                      // number: local port
-      AT_Number(0),                                      // number: socket state
-      AT_Number(0),                                      // number: PDP_ctxID/contextId
-  };
-
-  if (AT_Command(&qtelPtr->atCmd, "+QSSLSTATE", 1, paramData, 7, respData) == AT_OK)
-  {
-    if (respData[0].value.number == sock->linkNum && respData[6].value.number == sock->socketManager->contextId)
-    {
-      return (uint8_t)respData[5].value.number;
-    }
-  }
-
-  return 0;
-}
-
-static uint8_t getSockState(QTEL_SocketClient_t *sock)
-{
-  QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
-
-  if (sock->linkNum < 0) return 0;
+  if (qtelPtr->state <= QTEL_STATE_CHECK_AT)
+    return 0;
 
   AT_Data_t paramData[2] = {
       AT_Number(1),             // query type: specific id
@@ -411,10 +363,24 @@ static uint8_t getSockState(QTEL_SocketClient_t *sock)
       AT_Number(0),                                       // number: context Id
   };
 
-  if (AT_Command(&qtelPtr->atCmd, "+QISTATE", 2, paramData, 7, respData) == AT_OK) {
+  if (sock->isSSL == 1) {
+    AT_DataSetNumber( &paramData[0], sock->linkNum );
+    atStatus = AT_Command(&qtelPtr->atCmd, "+QSSLSTATE", 1, paramData, 7, respData);
+  }
+  else
+    atStatus = AT_Command(&qtelPtr->atCmd, "+QISTATE", 2, paramData, 7, respData);
+
+  if (atStatus == AT_OK) {
     if (respData[0].value.number == sock->linkNum
         && respData[6].value.number == sock->socketManager->contextId)
     {
+      /**
+       * 0  "Initial": connection has not been established
+       * 1  "Opening": client is connecting or server is trying to listen
+       * 2  "Connected": client/incoming connection has been established
+       * 3  "Listening": server is listening
+       * 4  "Closing": connection is closing
+       */
       return (uint8_t) respData[5].value.number;
     }
   }
@@ -426,21 +392,24 @@ static uint8_t getSockState(QTEL_SocketClient_t *sock)
 static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
+  AT_Data_t paramData[2] = {
+      AT_Number(sock->linkNum),
+      AT_Number(16000), // timeout
+  };
 
   if (sock->linkNum < 0) return QTEL_ERROR;
 
-  if (qtelPtr->state >= QTEL_STATE_ACTIVE && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE) {
-    AT_Data_t paramData = AT_Number(sock->linkNum);
+  if (qtelPtr->state > QTEL_STATE_CHECK_AT) {
     if (sock->isSSL == 1) // USE SSL
     {
-      if (AT_Command(&qtelPtr->atCmd, "+QSSLCLOSE", 1, &paramData, 0, 0) != AT_OK)
+      if (AT_CommandWithTimeout(&qtelPtr->atCmd, "+QSSLCLOSE", 2, paramData, 0, 0, 20000) != AT_OK)
       {
         return QTEL_ERROR;
       }
     }
     else // NO USE SSL
     {
-      if (AT_Command(&qtelPtr->atCmd, "+QICLOSE", 1, &paramData, 0, 0) != AT_OK) {
+      if (AT_CommandWithTimeout(&qtelPtr->atCmd, "+QICLOSE", 2, paramData, 0, 0, 20000) != AT_OK) {
         return QTEL_ERROR;
       }
     }
@@ -448,7 +417,6 @@ static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
 
   if (sock->state != QTEL_SOCK_STATE_OPENING) {
     sock->state = QTEL_SOCK_STATE_CLOSE;
-    sock->tick.reconnDelay = qtelPtr->getTick();
     QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
     qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   }
@@ -460,7 +428,7 @@ static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
-  AT_Data_t paramData[4] = {
+  AT_Data_t paramData[3] = {
       AT_String("sslversion"),
       AT_Number(sock->socketManager->sslcontextId),
       AT_Number(4),

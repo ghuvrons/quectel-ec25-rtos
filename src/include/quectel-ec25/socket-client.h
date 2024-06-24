@@ -27,19 +27,19 @@
 #define QTEL_SOCK_EVENT_ON_CLOSED              0x20
 #define QTEL_SOCK_EVENT_ON_RECV_DATA_AVAILABLE 0x40
 
-enum {
+typedef enum {
   QTEL_SOCK_STATE_CLOSE,
   QTEL_SOCK_STATE_OPENING,
   QTEL_SOCK_STATE_WAIT_PDP_ACTIVE,
   QTEL_SOCK_STATE_OPEN_ERROR,
   QTEL_SOCK_STATE_OPEN,
-};
+} QTEL_SocketClient_State_t;
 
 
 typedef struct QTEL_SocketClient_t {
   struct QTEL_Socket_HandlerTypeDef *socketManager;
+  QTEL_SocketClient_State_t state;
 
-  uint8_t state;
   uint8_t events;               // Events flag
   int8_t  linkNum;
   uint8_t type;                 // SIM_SOCK_UDP or SIM_SOCK_TCPIP
@@ -47,13 +47,13 @@ typedef struct QTEL_SocketClient_t {
   // configuration
   struct {
     uint32_t timeout;
-    uint8_t  autoReconnect;
-    uint16_t reconnectingDelay;
+//    uint8_t  autoReconnect;
+//    uint16_t reconnectingDelay;
   } config;
 
   // tick register for delay and timeout
   struct {
-    uint32_t reconnDelay;
+//    uint32_t reconnDelay;
     uint32_t connecting;
   } tick;
 
@@ -69,7 +69,7 @@ typedef struct QTEL_SocketClient_t {
   struct {
     void (*onConnecting)(void);
     void (*onConnected)(void);
-    void (*onConnectError)(void);
+    void (*onConnectingError)(void);
     void (*onClosed)(void);
     void (*onReceived)(void *buffer);
   } listeners;

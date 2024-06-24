@@ -184,8 +184,8 @@ static void onSocketOpened(void *app, AT_Data_t *resp)
       QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENED);
     }
     else {
-      sock->state = QTEL_SOCK_STATE_CLOSE;
-      QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENING_ERROR|QTEL_SOCK_EVENT_ON_CLOSED);
+      sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
+      QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENING_ERROR);
 
       switch (err) {
       case 550: case 561: case 568: case 569: case 570: case 572: case 573:

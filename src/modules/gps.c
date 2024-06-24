@@ -96,7 +96,7 @@ void QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef *qtelGps, const QTEL_GPS_Confi
   qtelGps->config.key = QTEL_GPS_CONFIG_KEY;
 }
 
-void QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef *qtelGps, uint8_t newState)
+void QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_State_t newState)
 {
   qtelGps->state = newState;
   ((QTEL_HandlerTypeDef*) qtelGps->qtel)->rtos.eventSet(QTEL_RTOS_EVT_GPS_NEW_STATE);

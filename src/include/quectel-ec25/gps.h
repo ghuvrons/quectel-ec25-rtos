@@ -58,13 +58,13 @@
 #define QTEL_AGLONASS_PTC_USER_PLANE_LPP          0x0400
 
 
-enum {
+typedef enum {
   QTEL_GPS_STATE_NON_ACTIVE,
   QTEL_GPS_STATE_SETUP,
   QTEL_GPS_STATE_WAITING_NTP,
   QTEL_GPS_STATE_FIXING,
   QTEL_GPS_STATE_FIXED,
-};
+} QTEL_GPS_State_t;
 
 typedef enum {
   QTEL_GPS_MEARATE_1HZ = 1,
@@ -116,8 +116,8 @@ typedef struct {
 typedef struct QTEL_GPS_HandlerTypeDef {
   void                *qtel;
   uint8_t             isEnable;
+  QTEL_GPS_State_t    state;
   QTEL_GPS_Mode_t     mode;
-  uint8_t             state;
   uint32_t            stateTick;
   uint32_t            getLocTick;
   uint8_t             isConfigured;
@@ -137,7 +137,7 @@ typedef struct QTEL_GPS_HandlerTypeDef {
 
 QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef*, void *qtelPtr);
 void          QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef*, const QTEL_GPS_Config_t*);
-void          QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef*, uint8_t newState);
+void          QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_State_t newState);
 void          QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef*);
 QTEL_Status_t QTEL_GPS_SetupConfiguration(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_Config_t*);
 void          QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef*);
