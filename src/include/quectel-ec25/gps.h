@@ -124,6 +124,7 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   uint8_t             isConfigured;
   QTEL_GPS_Config_t   config;
   uint8_t             acquireErrorCounter;
+  uint32_t            agpsTick;
 
   struct {
     float latitude;
