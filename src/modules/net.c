@@ -95,7 +95,7 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
 
   case QTEL_NET_STATE_ACTIVATING:
     if (qtelPtr->state < QTEL_STATE_ACTIVE
-        && (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED) 
+        || !(QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
             || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
     {
       qtelNet->state = QTEL_NET_STATE_ACTIVATING_PENDING;

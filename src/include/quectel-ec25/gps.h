@@ -96,6 +96,7 @@ typedef struct {
   uint16_t                  NMEA;
   QTEL_GPS_Plane_Mode_t     planeMode;
   uint32_t                  AGPS_Mode;
+  QTEL_GPS_Mode_t           mode;
   QTEL_GPS_Mode_t           hyridMaxAllowedMode; // default 0 for all mode is allowed
   uint8_t                   AGPS_Protocols;
   uint16_t                  AGLONASS_Protocols;
