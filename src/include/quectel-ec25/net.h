@@ -40,7 +40,7 @@ typedef struct {
 QTEL_Status_t QTEL_NET_Init(QTEL_NET_HandlerTypeDef*, void *hsim);
 void          QTEL_NET_SetupAPN(QTEL_NET_HandlerTypeDef*, char *APN, char *user, char *pass);
 
-QTEL_Status_t QTEL_NET_OnReboot(QTEL_NET_HandlerTypeDef*);
+QTEL_Status_t QTEL_NET_OnPoweredDown(QTEL_NET_HandlerTypeDef*);
 QTEL_Status_t QTEL_NET_Activate(QTEL_NET_HandlerTypeDef*, uint8_t isActive);
 
 void QTEL_NET_SetState(QTEL_NET_HandlerTypeDef*, uint8_t newState);

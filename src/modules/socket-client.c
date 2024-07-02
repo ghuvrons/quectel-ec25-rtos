@@ -66,18 +66,21 @@ QTEL_Status_t QTEL_SockClient_OnNetOpened(QTEL_SocketClient_t *sock)
 }
 
 
-QTEL_Status_t QTEL_SockClient_OnReboot(QTEL_SocketClient_t *sock)
+QTEL_Status_t QTEL_SockClient_OnPoweredDown(QTEL_SocketClient_t *sock)
 {
   // QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
-  if (sock->state == QTEL_SOCK_STATE_OPENING) {
-    sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
+  if (sock->state == QTEL_SOCK_STATE_OPENING || QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_OPENING_ERROR))
+  {
+    sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
+    QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_OPENING_ERROR);
+    if (sock->listeners.onConnectingError) sock->listeners.onConnectingError();
   }
-  if (sock->state == QTEL_SOCK_STATE_OPEN_ERROR) {
-    sock->state = QTEL_SOCK_STATE_WAIT_PDP_ACTIVE;
-  }
-  if (sock->state == QTEL_SOCK_STATE_OPEN) {
+
+  else if (sock->state == QTEL_SOCK_STATE_OPEN || QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_CLOSED)) 
+  {
     sock->state = QTEL_SOCK_STATE_CLOSE;
+    QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
     if (sock->listeners.onClosed) sock->listeners.onClosed();
   }
 
@@ -303,7 +306,7 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 
 connectingError:
   sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
-  QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
+  QTEL_BITS_SET(sock->events, QTEL_SOCK_EVENT_ON_OPENING_ERROR);
   qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKCLIENT_NEW_EVT);
   return QTEL_ERROR;
 }

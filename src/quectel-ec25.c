@@ -236,6 +236,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   qtelPtr->tick.changedState = qtelPtr->getTick();
 
   switch (qtelPtr->state) {
+  case QTEL_STATE_SHUTTING_DOWN:
   case QTEL_STATE_REBOOT:
 #if QTEL_DEBUG
     QTEL_Debug("rebooting");
@@ -256,8 +257,8 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 #endif /* QTEL_EN_FEATURE_NTP */
 
 #if QTEL_EN_FEATURE_NET
-    QTEL_NET_OnReboot(&qtelPtr->net);
-#endif /* QTEL_EN_FEATURE_SOCKET */
+    QTEL_NET_OnPoweredDown(&qtelPtr->net);
+#endif /* QTEL_EN_FEATURE_NET */
 
     qtelPtr->delay(1000);
     QTEL_Debug("reset power");

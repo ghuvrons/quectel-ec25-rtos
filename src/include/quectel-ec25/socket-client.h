@@ -81,7 +81,7 @@ QTEL_Status_t QTEL_SockClient_Init(QTEL_SocketClient_t*, const char *host, uint1
 QTEL_Status_t QTEL_SockClient_SetEvents(QTEL_SocketClient_t*, uint8_t events);
 QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t*);
 QTEL_Status_t QTEL_SockClient_OnNetOpened(QTEL_SocketClient_t*);
-QTEL_Status_t QTEL_SockClient_OnReboot(QTEL_SocketClient_t*);
+QTEL_Status_t QTEL_SockClient_OnPoweredDown(QTEL_SocketClient_t*);
 QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t*);
 void          QTEL_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
 QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t*, QTEL_HandlerTypeDef*);

@@ -83,7 +83,7 @@ void QTEL_SockManager_OnNewState(QTEL_Socket_HandlerTypeDef *sockMgr)
 }
 
 
-void QTEL_SockManager_OnReboot(QTEL_Socket_HandlerTypeDef *sockMgr)
+void QTEL_SockManager_OnPoweredDown(QTEL_Socket_HandlerTypeDef *sockMgr)
 {
   if (sockMgr->state > QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) {
     sockMgr->state = QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING;
@@ -91,7 +91,7 @@ void QTEL_SockManager_OnReboot(QTEL_Socket_HandlerTypeDef *sockMgr)
 
   for (uint8_t i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
     if (sockMgr->sockets[i] != 0) {
-      QTEL_SockClient_OnReboot(sockMgr->sockets[i]);
+      QTEL_SockClient_OnPoweredDown(sockMgr->sockets[i]);
     }
   }
 }

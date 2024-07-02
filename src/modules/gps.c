@@ -148,8 +148,8 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
     QTEL_Debug("[GPS] fixed");
     if (qtelGps->mode != QTEL_GPS_STANDALONE) {
       startGPS(qtelGps, QTEL_GPS_STANDALONE);
-      qtelGps->agpsTick = qtelPtr->getTick();
     }
+    qtelGps->agpsTick = 0;
     qtelGps->acquireErrorCounter = 0;
     qtelGps->getLocTick = qtelGps->stateTick;
     break;
