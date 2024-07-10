@@ -200,11 +200,12 @@ QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t *sock)
 }
 
 
-uint16_t QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint16_t length)
+int QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint16_t length)
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
   if (sock->state != QTEL_SOCK_STATE_OPEN) return 0;
+  if (length > 1024) length = 1024;
 
   AT_Data_t paramData[2] = {
       AT_Number(sock->linkNum),
@@ -217,17 +218,17 @@ uint16_t QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint
                         data, length,
                         2, paramData, 0, 0) != AT_OK)
     {
-      return 0;
+      return -1;
     }
   }
   else
   {
-    // [TODO]: response SEND FAIL is not handled yet
+    // TODO response SEND FAIL is not handled yet
     if (AT_CommandWrite(&qtelPtr->atCmd, "+QISEND", "> ", "SEND ",
                         data, length,
                         2, paramData, 0, 0) != AT_OK)
     {
-      return 0;
+      return -1;
     }
   }
   return length;
