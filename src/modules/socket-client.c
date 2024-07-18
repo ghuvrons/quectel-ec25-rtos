@@ -204,8 +204,9 @@ int QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint16_t 
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
-  if (sock->state != QTEL_SOCK_STATE_OPEN) return 0;
+  if (sock->state != QTEL_SOCK_STATE_OPEN) return -1;
   if (length > 1024) length = 1024;
+  else if (length == 0) return 0;
 
   AT_Data_t paramData[2] = {
       AT_Number(sock->linkNum),
@@ -231,7 +232,7 @@ int QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint16_t 
       return -1;
     }
   }
-  return length;
+  return (int) length;
 }
 
 
