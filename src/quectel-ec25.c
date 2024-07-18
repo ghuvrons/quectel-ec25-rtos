@@ -329,6 +329,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     break;
 
   case QTEL_STATE_CHECK_SIMCARD:
+    qtelPtr->signal = 0;
     if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_SIM_READY))
     {
       QTEL_GetSIMInfo(qtelPtr);
@@ -344,6 +345,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_Debug("Checking network....");
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED|QTEL_STATUS_GPRS_REGISTERED|QTEL_STATUS_LTE_REGISTERED);
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING);
+    qtelPtr->signal = 0;
 
     status = QTEL_SetOperator(qtelPtr, qtelPtr->operator);
     if (status == QTEL_TIMEOUT) {
@@ -636,6 +638,7 @@ static void onNetworkStatusUpdated(void *app, AT_Data_t *data)
     QTEL_Debug("Searching network....");
 
   default:
+    qtelPtr->signal = 0;
     if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
       qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
@@ -665,8 +668,6 @@ static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t *data)
     QTEL_Debug("Searching GPRS network....");
 
   default:
-    if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
-      qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
     break;
   }
@@ -694,8 +695,6 @@ static void onLTENetworkStatusUpdated(void *app, AT_Data_t *data)
     QTEL_Debug("Searching LTE network....");
 
   default:
-    if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
-      qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED);
     break;
   }
