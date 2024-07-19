@@ -204,6 +204,7 @@ int QTEL_SockClient_SendData(QTEL_SocketClient_t *sock, uint8_t *data, uint16_t 
 {
   QTEL_HandlerTypeDef *qtelPtr = sock->socketManager->qtel;
 
+  if (qtelPtr->state != QTEL_STATE_ACTIVE) return -1;
   if (sock->state != QTEL_SOCK_STATE_OPEN) return -1;
   if (length > 1024) length = 1024;
   else if (length == 0) return 0;
