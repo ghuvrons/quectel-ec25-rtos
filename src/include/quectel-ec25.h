@@ -24,9 +24,10 @@
 #define RESP_BUF_LOCK_TIMEOUT 60000
 
 typedef enum {
-  QTEL_STATE_NON_ACTIVE,
-  QTEL_STATE_SHUTTING_DOWN,
+  QTEL_STATE_POWERED_DOWN,
+  QTEL_STATE_POWERING_DOWN,
   QTEL_STATE_REBOOT,
+  QTEL_STATE_STARTING,
   QTEL_STATE_READY,
   QTEL_STATE_CHECK_AT,
   QTEL_STATE_CONFIGURATION,
@@ -47,8 +48,11 @@ typedef struct QTEL_HandlerTypeDef {
   uint8_t             signal; // 0 - 100
 
   struct {
-    uint32_t init;
+    uint32_t starting;
+    uint32_t poweringDown;
     uint32_t changedState;
+    uint32_t checkSIM;
+    uint32_t checkNetwork;
     uint32_t checksignal;
   } tick;
 
@@ -138,6 +142,7 @@ void QTEL_Thread_ATCHandler(QTEL_HandlerTypeDef*);
 
 QTEL_Status_t QTEL_Start(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_Reboot(QTEL_HandlerTypeDef*);
+QTEL_Status_t QTEL_Restart(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef*);
 void QTEL_SetState(QTEL_HandlerTypeDef*, uint8_t newState);
 

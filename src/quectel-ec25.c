@@ -102,8 +102,6 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
   QTEL_FILE_Init(&qtelPtr->file, qtelPtr);
 #endif /* QTEL_EN_FEATURE_GPS */
 
-  qtelPtr->tick.init = qtelPtr->getTick();
-
   return QTEL_OK;
 }
 
@@ -119,6 +117,7 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 
   AT_Start(&qtelPtr->atCmd);
 
+  qtelPtr->state = QTEL_STATE_STARTING;
   if (qtelPtr->resetPower != 0) {
     while (qtelPtr->resetPower() != QTEL_OK) {
       qtelPtr->delay(1);
@@ -201,6 +200,12 @@ QTEL_Status_t QTEL_Reboot(QTEL_HandlerTypeDef *qtelPtr)
   return QTEL_OK;
 }
 
+QTEL_Status_t QTEL_Restart(QTEL_HandlerTypeDef *qtelPtr)
+{
+  QTEL_SetState(qtelPtr, QTEL_STATE_POWERING_DOWN);
+  return QTEL_OK;
+}
+
 QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef *qtelPtr)
 {
   // disable sim
@@ -222,6 +227,12 @@ void QTEL_SetState(QTEL_HandlerTypeDef *qtelPtr, QTEL_State_t newState)
 {
   qtelPtr->state = newState;
   qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_NEW_STATE);
+  if (newState != QTEL_STATE_CHECK_SIMCARD) {
+    qtelPtr->tick.checkSIM = 0;
+  }
+  if (newState != QTEL_STATE_CHECK_NETWORK) {
+    qtelPtr->tick.checkNetwork = 0;
+  }
 }
 
 static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
@@ -236,7 +247,12 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   qtelPtr->tick.changedState = qtelPtr->getTick();
 
   switch (qtelPtr->state) {
-  case QTEL_STATE_SHUTTING_DOWN:
+  case QTEL_STATE_POWERING_DOWN:
+    qtelPtr->tick.poweringDown = qtelPtr->getTick();
+    QTEL_PowerDown(qtelPtr);
+    break;
+
+  case QTEL_STATE_POWERED_DOWN:
   case QTEL_STATE_REBOOT:
 #if QTEL_DEBUG
     QTEL_Debug("rebooting");
@@ -262,13 +278,13 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
     qtelPtr->delay(1000);
     QTEL_Debug("reset power");
+    qtelPtr->state = QTEL_STATE_STARTING;
+    qtelPtr->tick.starting = qtelPtr->getTick();
     if (qtelPtr->resetPower != 0) {
       while (qtelPtr->resetPower() != QTEL_OK) {
         qtelPtr->delay(1);
       }
     }
-    qtelPtr->delay(10000);
-    QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_AT);
     break;
 
   case QTEL_STATE_CONFIGURATION:
@@ -337,6 +353,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     }
     else
     {
+      qtelPtr->tick.checkSIM = qtelPtr->getTick();
       checkSIM(qtelPtr);
     }
     break;
@@ -349,7 +366,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
     status = QTEL_SetOperator(qtelPtr, qtelPtr->operator);
     if (status == QTEL_TIMEOUT) {
-      QTEL_Reboot(qtelPtr);
+      QTEL_Restart(qtelPtr);
       break;
     }
 
@@ -392,12 +409,17 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 static void loop(QTEL_HandlerTypeDef *qtelPtr)
 {
   switch (qtelPtr->state) {
-  case QTEL_STATE_NON_ACTIVE:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.init, 15000)) {
+  case QTEL_STATE_STARTING:
+    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.starting, 15000)) {
       // reset timer
       qtelPtr->tick.changedState = qtelPtr->getTick();
-
       goto checkAT;
+    }
+    break;
+
+  case QTEL_STATE_POWERING_DOWN:
+    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.poweringDown, 70000)) {
+      QTEL_SetState(qtelPtr, QTEL_STATE_POWERED_DOWN);
     }
     break;
 
@@ -427,17 +449,21 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
     break;
 
   case QTEL_STATE_CHECK_SIMCARD:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 10000)) {
+    if (qtelPtr->tick.checkSIM > 0 && QTEL_IsTimeout(qtelPtr, qtelPtr->tick.checkSIM, 10000)) {
       // reset timer
-      qtelPtr->tick.changedState = qtelPtr->getTick();
+      qtelPtr->tick.checkSIM = qtelPtr->getTick();
       checkSIM(qtelPtr);
+
+      if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 180000)) {
+        QTEL_Restart(qtelPtr);
+      }
     }
     break;
 
   case QTEL_STATE_CHECK_NETWORK:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 200000)) {
+    if (qtelPtr->tick.checkNetwork > 0 && QTEL_IsTimeout(qtelPtr, qtelPtr->tick.checkNetwork, 60000)) {
       // reset timer
-      qtelPtr->tick.changedState = qtelPtr->getTick();
+      qtelPtr->tick.checkNetwork = qtelPtr->getTick();
 
       QTEL_Debug("Rechecking network....");
       if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED))
@@ -451,9 +477,11 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
           QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED))
       {
         QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
+        break;
       }
-      else {
-        QTEL_Reboot(qtelPtr);
+
+      if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 180000)) {
+        QTEL_Restart(qtelPtr);
       }
     }
     break;
@@ -735,5 +763,5 @@ static void onPoweredDown(void *app, uint8_t *_, uint16_t __)
 #if QTEL_DEBUG
   qtelPtr->debug.poweredDownCounter += 1;
 #endif
-  QTEL_Reboot(qtelPtr);
+  qtelPtr->state = QTEL_STATE_POWERED_DOWN;
 }

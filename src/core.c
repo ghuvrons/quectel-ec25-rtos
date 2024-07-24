@@ -27,6 +27,16 @@ QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
 }
 
 
+QTEL_Status_t QTEL_PowerDown(QTEL_HandlerTypeDef *qtelPtr)
+{
+  if (AT_Command(&qtelPtr->atCmd, "+QPOWD", 0, 0, 0, 0) == AT_OK) {
+    qtelPtr->state = QTEL_STATE_POWERING_DOWN;
+  }
+
+  return QTEL_OK;
+}
+
+
 QTEL_Status_t QTEL_GetFirmwareVersion(QTEL_HandlerTypeDef *qtelPtr)
 {
   QTEL_Status_t status = QTEL_ERROR;
@@ -116,7 +126,7 @@ QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
   status = AT_Check(&qtelPtr->atCmd, "+CREG", 4, respData);
   if (status != AT_OK) return (QTEL_Status_t) status;
 
-  if (respData[1].value.number == -1)
+  if (respData[1].value.number == -1) // from urc
     qtelPtr->network_status = (uint8_t) respData[0].value.number;
   else
     qtelPtr->network_status = (uint8_t) respData[1].value.number;

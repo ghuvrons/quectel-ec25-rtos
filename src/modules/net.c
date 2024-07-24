@@ -239,7 +239,7 @@ checkContext:
   commandSent++;
   if (commandSent > 3) {
     QTEL_Debug("trouble activate PDP Ctx %d", contextId);
-    QTEL_Reboot(qtelPtr);
+    QTEL_Restart(qtelPtr);
     status = QTEL_ERROR;
     goto endFunc;
   }
