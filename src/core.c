@@ -136,8 +136,11 @@ QTEL_Status_t QTEL_CheckNetwork(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
   }
   else {
-    if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
+    if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK) {
       qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
+      qtelPtr->tick.checkNetwork = qtelPtr->getTick();
+      qtelPtr->tick.changedState = qtelPtr->getTick();
+    }
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED);
   }
 
@@ -172,10 +175,21 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
   // check response
   if (qtelPtr->GPRS_network_status == 1 || qtelPtr->GPRS_network_status == 5) {
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
+
+#if QTEL_EN_FEATURE_NET
+    if (qtelPtr->state == QTEL_STATE_ACTIVE) {
+      if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)
+        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+#if QTEL_EN_FEATURE_SOCKET
+      else if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
+               && qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING)
+        QTEL_SockManager_SetState(&qtelPtr->socketManager, QTEL_SOCKH_STATE_PDP_ACTIVATING);
+#endif /* QTEL_EN_FEATURE_SOCKET */
+    }
+#endif /* QTEL_EN_FEATURE_NET */
   }
+
   else {
-    if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
-      qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
   }
 
@@ -209,10 +223,21 @@ QTEL_Status_t QTEL_CheckLTENetwork(QTEL_HandlerTypeDef *qtelPtr)
   // check response
   if (qtelPtr->LTE_network_status == 1 || qtelPtr->LTE_network_status == 5) {
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED);
+
+#if QTEL_EN_FEATURE_NET
+    if (qtelPtr->state == QTEL_STATE_ACTIVE) {
+      if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)
+        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+#if QTEL_EN_FEATURE_SOCKET
+      else if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
+               && qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING)
+        QTEL_SockManager_SetState(&qtelPtr->socketManager, QTEL_SOCKH_STATE_PDP_ACTIVATING);
+#endif /* QTEL_EN_FEATURE_SOCKET */
+    }
+#endif /* QTEL_EN_FEATURE_NET */
   }
+
   else {
-    if (qtelPtr->state > QTEL_STATE_CHECK_NETWORK)
-      qtelPtr->state = QTEL_STATE_CHECK_NETWORK;
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED);
   }
 
