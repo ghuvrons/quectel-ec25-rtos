@@ -233,6 +233,9 @@ void QTEL_SetState(QTEL_HandlerTypeDef *qtelPtr, QTEL_State_t newState)
   if (newState != QTEL_STATE_CHECK_NETWORK) {
     qtelPtr->tick.checkNetwork = 0;
   }
+  if (newState != QTEL_STATE_POWERING_DOWN) {
+    qtelPtr->tick.poweringDown = 0;
+  }
 }
 
 static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
@@ -249,7 +252,9 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   switch (qtelPtr->state) {
   case QTEL_STATE_POWERING_DOWN:
     qtelPtr->tick.poweringDown = qtelPtr->getTick();
-    QTEL_PowerDown(qtelPtr);
+    if (AT_Command(&qtelPtr->atCmd, "+QPOWD", 0, 0, 0, 0) != AT_OK) {
+      QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+    }
     break;
 
   case QTEL_STATE_POWERED_DOWN:
@@ -408,36 +413,26 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 static void loop(QTEL_HandlerTypeDef *qtelPtr)
 {
   switch (qtelPtr->state) {
-  case QTEL_STATE_STARTING:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.starting, 15000)) {
-      // reset timer
-      qtelPtr->tick.changedState = qtelPtr->getTick();
-      goto checkAT;
-    }
-    break;
-
   case QTEL_STATE_POWERING_DOWN:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.poweringDown, 70000)) {
+    if (qtelPtr->tick.poweringDown > 0 && QTEL_IsTimeout(qtelPtr, qtelPtr->tick.poweringDown, 70000)) {
       QTEL_SetState(qtelPtr, QTEL_STATE_POWERED_DOWN);
     }
     break;
 
-  case QTEL_STATE_READY:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 30000)) {
+  case QTEL_STATE_STARTING:
+    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.starting, 15000)) {
       // reset timer
-      qtelPtr->tick.changedState = qtelPtr->getTick();
-
+      qtelPtr->tick.starting = qtelPtr->getTick();
       goto checkAT;
     }
-    break;
-
-  case QTEL_STATE_CHECK_AT:
-    if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 1000)) {
+    if (qtelPtr->tick.checkAT > 0 && QTEL_IsTimeout(qtelPtr, qtelPtr->tick.checkAT, 1000)) {
       // reset timer
-      qtelPtr->tick.changedState = qtelPtr->getTick();
-
       checkAT:
+      qtelPtr->tick.checkAT = qtelPtr->getTick();
+
       if (QTEL_CheckAT(qtelPtr) == QTEL_OK) {
+        qtelPtr->tick.checkAT = 0;
+
         if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED)) {
           QTEL_SetState(qtelPtr, QTEL_STATE_CONFIGURATION);
           break;

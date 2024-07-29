@@ -312,7 +312,7 @@ QTEL_Status_t QTEL_NET_DataCounterReset(QTEL_NET_HandlerTypeDef *qtelNet)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelNet->qtel;
 
-  if (qtelPtr->state <= QTEL_STATE_CHECK_AT) return QTEL_ERROR;
+  if (qtelPtr->state <= QTEL_STATE_STARTING) return QTEL_ERROR;
 
   if (AT_Command(&qtelPtr->atCmd, "+QGDCNT=0", 0, 0, 0, 0) != AT_OK) return QTEL_ERROR;
   return QTEL_OK;
@@ -328,7 +328,7 @@ QTEL_Status_t QTEL_NET_GetDataCounter(QTEL_NET_HandlerTypeDef *qtelNet, uint32_t
     AT_Number(0),
   };
 
-  if (qtelPtr->state <= QTEL_STATE_CHECK_AT) return QTEL_ERROR;
+  if (qtelPtr->state <= QTEL_STATE_STARTING) return QTEL_ERROR;
 
   if (AT_Check(&qtelPtr->atCmd, "+QGDCNT", 2, respData) != AT_OK) return QTEL_ERROR;
 

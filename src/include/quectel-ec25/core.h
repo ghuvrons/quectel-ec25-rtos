@@ -13,7 +13,6 @@
 
 QTEL_Status_t QTEL_Echo(QTEL_HandlerTypeDef*, uint8_t onoff);
 QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef*);
-QTEL_Status_t QTEL_PowerDown(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_GetFirmwareVersion(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_GetICCID(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_GetError(QTEL_HandlerTypeDef*);

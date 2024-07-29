@@ -349,7 +349,7 @@ static uint8_t getSockState(QTEL_SocketClient_t *sock)
   if (sock->linkNum < 0)
     return 0;
 
-  if (qtelPtr->state <= QTEL_STATE_CHECK_AT)
+  if (qtelPtr->state <= QTEL_STATE_STARTING)
     return 0;
 
   AT_Data_t paramData[2] = {
@@ -405,7 +405,7 @@ static QTEL_Status_t sockClose(QTEL_SocketClient_t *sock)
 
   if (sock->linkNum < 0) return QTEL_ERROR;
 
-  if (qtelPtr->state > QTEL_STATE_CHECK_AT) {
+  if (qtelPtr->state > QTEL_STATE_STARTING) {
     if (sock->isSSL == 1) // USE SSL
     {
       if (AT_CommandWithTimeout(&qtelPtr->atCmd, "+QSSLCLOSE", 2, paramData, 0, 0, 20000) != AT_OK)

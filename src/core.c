@@ -19,21 +19,9 @@ QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
   
   if (AT_Command(&qtelPtr->atCmd, "", 0, 0, 0, 0) == AT_OK) {
     status = QTEL_OK;
-  } else {
-    qtelPtr->state = QTEL_STATE_CHECK_AT;
   }
 
   return status;
-}
-
-
-QTEL_Status_t QTEL_PowerDown(QTEL_HandlerTypeDef *qtelPtr)
-{
-  if (AT_Command(&qtelPtr->atCmd, "+QPOWD", 0, 0, 0, 0) == AT_OK) {
-    qtelPtr->state = QTEL_STATE_POWERING_DOWN;
-  }
-
-  return QTEL_OK;
 }
 
 

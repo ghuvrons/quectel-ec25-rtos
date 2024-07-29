@@ -28,8 +28,6 @@ typedef enum {
   QTEL_STATE_POWERING_DOWN,
   QTEL_STATE_REBOOT,
   QTEL_STATE_STARTING,
-  QTEL_STATE_READY,
-  QTEL_STATE_CHECK_AT,
   QTEL_STATE_CONFIGURATION,
   QTEL_STATE_CHECK_SIMCARD,
   QTEL_STATE_CHECK_NETWORK,
@@ -51,6 +49,7 @@ typedef struct QTEL_HandlerTypeDef {
     uint32_t starting;
     uint32_t poweringDown;
     uint32_t changedState;
+    uint32_t checkAT;
     uint32_t checkSIM;
     uint32_t checkNetwork;
     uint32_t checksignal;
