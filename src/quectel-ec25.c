@@ -398,7 +398,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_Debug("connected to %s", qtelPtr->registeredOperator);
 
     // QTEL_GetAvailableOperator(qtelPtr);
-    if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING
+    if (qtelPtr->net.state >= QTEL_NET_STATE_ACTIVATING_PENDING
         && (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED) 
             || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))) 
     {

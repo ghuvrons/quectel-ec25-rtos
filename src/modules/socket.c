@@ -28,6 +28,8 @@ QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef *sockMgr, void *q
   sockMgr->state = QTEL_SOCKH_STATE_NON_ACTIVE;
   sockMgr->contextId = QTEL_CID_SOCKET;
   sockMgr->sslcontextId = QTEL_SSLID_SOCKET;
+  sockMgr->activatingTick = 0;
+  sockMgr->activatingPendingTick = 0;
 
   AT_Data_t *socketOpenResp = malloc(sizeof(AT_Data_t)*2);
   memset(socketOpenResp, 0, sizeof(AT_Data_t)*2);
@@ -59,6 +61,10 @@ QTEL_Status_t QTEL_SockManager_Init(QTEL_Socket_HandlerTypeDef *sockMgr, void *q
 
 void QTEL_SockManager_SetState(QTEL_Socket_HandlerTypeDef *sockMgr, uint8_t newState)
 {
+  QTEL_HandlerTypeDef *qtelPtr = sockMgr->qtel;
+
+  if (newState == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) sockMgr->activatingPendingTick = qtelPtr->getTick();
+  else if (newState == QTEL_SOCKH_STATE_PDP_ACTIVATING)    sockMgr->activatingTick = qtelPtr->getTick();
   sockMgr->state = newState;
   ((QTEL_HandlerTypeDef*) sockMgr->qtel)->rtos.eventSet(QTEL_RTOS_EVT_SOCKH_NEW_EVT);
 }
@@ -86,7 +92,7 @@ void QTEL_SockManager_OnNewState(QTEL_Socket_HandlerTypeDef *sockMgr)
 void QTEL_SockManager_OnPoweredDown(QTEL_Socket_HandlerTypeDef *sockMgr)
 {
   if (sockMgr->state > QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) {
-    sockMgr->state = QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING;
+    QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING);
   }
 
   for (uint8_t i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
@@ -111,9 +117,9 @@ QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef *sockMgr)
   QTEL_Status_t status;
 
   if (qtelPtr->state < QTEL_STATE_ACTIVE 
+      || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE
       || !(QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED) 
-           || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))
-      || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE)
+           || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
   {
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING);
     return QTEL_ERROR_PENDING;
@@ -124,9 +130,9 @@ QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef *sockMgr)
   if (status == QTEL_OK)
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVE);
   else if ( qtelPtr->state < QTEL_STATE_ACTIVE 
+            || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE
             || !(QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED) 
-                || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))
-            || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE)
+                || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
   {
     QTEL_SockManager_SetState(sockMgr, QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING);
     return QTEL_ERROR_PENDING;
@@ -156,11 +162,27 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
     return;
   }
 
-  if (sockMgr->state == QTEL_SOCKH_STATE_PDP_ACTIVATING && qtelPtr->state >= QTEL_STATE_ACTIVE)
-  {
+  switch (sockMgr->state) {
+  case QTEL_SOCKH_STATE_PDP_ACTIVATING:
     if (QTEL_IsTimeout(qtelPtr, sockMgr->activatingTick, 10000)) {
       QTEL_SockManager_PDP_Activate(sockMgr);
     }
+    break; 
+
+  case QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING:
+    if (QTEL_IsTimeout(qtelPtr, sockMgr->activatingPendingTick, 180000)) {
+      sockMgr->activatingPendingTick = qtelPtr->getTick();
+      if (qtelPtr->state >= QTEL_STATE_ACTIVE
+          && qtelPtr->net.state != QTEL_NET_STATE_ACTIVE
+          && (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+              || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
+      {
+        QTEL_SockManager_SetState(&qtelPtr->socketManager, QTEL_SOCKH_STATE_PDP_ACTIVATING);
+      }
+    }
+    break;
+
+  default: break;
   }
 
   for (i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
