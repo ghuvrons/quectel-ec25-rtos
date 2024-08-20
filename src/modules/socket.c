@@ -170,10 +170,10 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
     break; 
 
   case QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING:
-    if (QTEL_IsTimeout(qtelPtr, sockMgr->activatingPendingTick, 180000)) {
+    if (QTEL_IsTimeout(qtelPtr, sockMgr->activatingPendingTick, 3000)) {
       sockMgr->activatingPendingTick = qtelPtr->getTick();
       if (qtelPtr->state >= QTEL_STATE_ACTIVE
-          && qtelPtr->net.state != QTEL_NET_STATE_ACTIVE
+          && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
           && (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
               || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
       {
