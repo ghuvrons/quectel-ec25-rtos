@@ -163,6 +163,10 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
     lastTO = qtelPtr->getTick();
     loop(qtelPtr);
 
+#if QTEL_EN_FEATURE_NET
+    QTEL_NET_Loop(&qtelPtr->net);
+#endif /* QTEL_EN_FEATURE_SOCKET */
+
 #if QTEL_EN_FEATURE_SOCKET
     QTEL_SockManager_Loop(&qtelPtr->socketManager);
 #endif /* QTEL_EN_FEATURE_SOCKET */
@@ -402,7 +406,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
         && (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED) 
             || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))) 
     {
-      QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+      QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING_DELAY);
     }
     break;
 
@@ -684,7 +688,7 @@ static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t *data)
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
       if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)
-        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING_DELAY);
 #if QTEL_EN_FEATURE_SOCKET
       else if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
                && qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING)
@@ -720,7 +724,7 @@ static void onLTENetworkStatusUpdated(void *app, AT_Data_t *data)
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
       if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)
-        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING_DELAY);
 #if QTEL_EN_FEATURE_SOCKET
       else if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
                && qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING)

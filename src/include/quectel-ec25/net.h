@@ -19,6 +19,7 @@
 typedef enum {
   QTEL_NET_STATE_NON_ACTIVE,
   QTEL_NET_STATE_ACTIVATING_PENDING,
+  QTEL_NET_STATE_ACTIVATING_DELAY,
   QTEL_NET_STATE_ACTIVATING,
   QTEL_NET_STATE_ACTIVE,
 } QTEL_NET_State_t;
@@ -28,6 +29,7 @@ typedef struct {
   QTEL_NET_State_t  state;
   uint8_t           status;
   uint16_t          isCtxConfigured;
+  uint32_t          activatingDelayTick;
 
   struct {
     char *APN;
@@ -45,7 +47,7 @@ QTEL_Status_t QTEL_NET_Activate(QTEL_NET_HandlerTypeDef*, uint8_t isActive);
 
 void QTEL_NET_SetState(QTEL_NET_HandlerTypeDef*, uint8_t newState);
 void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef*);
-
+void QTEL_NET_Loop(QTEL_NET_HandlerTypeDef*);
 // Context
 
 QTEL_Status_t QTEL_NET_ConfigurePDP(QTEL_NET_HandlerTypeDef*, uint8_t contextId);

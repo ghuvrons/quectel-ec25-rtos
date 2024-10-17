@@ -167,7 +167,7 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
       if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)
-        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING_DELAY);
 #if QTEL_EN_FEATURE_SOCKET
       else if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
                && qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING)
@@ -215,7 +215,7 @@ QTEL_Status_t QTEL_CheckLTENetwork(QTEL_HandlerTypeDef *qtelPtr)
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
       if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)
-        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+        QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING_DELAY);
 #if QTEL_EN_FEATURE_SOCKET
       else if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
                && qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING)
