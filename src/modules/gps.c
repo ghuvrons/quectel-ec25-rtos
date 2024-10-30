@@ -390,7 +390,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
   QTEL_Datetime_t currenttime;
   QTEL_Datetime_t xtratime;
   AT_Data_t paramData[5];
-  uint8_t xtratimeStr[24];
+  uint8_t xtratimeStr[25];
   AT_Data_t respData[2] = {
       AT_Number(0),
       AT_Buffer(xtratimeStr, sizeof(xtratimeStr)),
@@ -426,7 +426,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
         return QTEL_OK;
       }
 
-      snprintf((char*)xtratimeStr, 24, "%02d/%02d/%02d,%02d:%02d:%02d",
+      snprintf((char*)xtratimeStr, 25, "%02d/%02d/%02d,%02d:%02d:%02d",
                ((int)currenttime.year) + 2000,
                (int) currenttime.month,
                (int) currenttime.day,
