@@ -34,6 +34,9 @@
 #define QTEL_SSLID_SOCKET 1
 #endif
 
+#ifndef QTEL_SSLID_HTTP
+#define QTEL_SSLID_HTTP 2
+#endif
 
 #ifndef QTEL_EN_FEATURE_GPS
 #define QTEL_EN_FEATURE_GPS 0

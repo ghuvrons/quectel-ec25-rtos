@@ -38,6 +38,7 @@ typedef enum {
 
 typedef struct {
   const char*   url;
+  uint8_t       isSSL;
   uint8_t       method;
   uint8_t       isWithHeader;
   const uint8_t *httpData;         // content
@@ -65,6 +66,7 @@ typedef struct {
 typedef struct {
   void      *qtel;
   uint8_t   contextId;
+  uint8_t   sslContextId;
   uint8_t   status;
   uint8_t   state;
   uint32_t  stateTick;

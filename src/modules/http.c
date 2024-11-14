@@ -21,6 +21,7 @@ static QTEL_Status_t httpConfigure(QTEL_HTTP_HandlerTypeDef*);
 
 static void onGetResponse(void *app, AT_Data_t *resp);
 static void onReadIntoFileDone(void *app, AT_Data_t *resp);
+static QTEL_Status_t configSSL(QTEL_HTTP_HandlerTypeDef *qtelhttp);
 
 
 QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
@@ -32,6 +33,7 @@ QTEL_Status_t QTEL_HTTP_Init(QTEL_HTTP_HandlerTypeDef *qtelhttp, void *qtelPtr)
   qtelhttp->state = QTEL_HTTP_STATE_NON_ACTIVE;
   qtelhttp->stateTick = 0;
   qtelhttp->contextId = QTEL_CID_HTTP;
+  qtelhttp->sslContextId = QTEL_SSLID_HTTP;
 
   AT_Data_t *httpActionResp = malloc(sizeof(AT_Data_t)*3);
   memset(httpActionResp, 0, sizeof(AT_Data_t)*3);
@@ -65,6 +67,12 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
       req->method >= QTEL_HTTP_METHOD_MAX)
   {
     return QTEL_ERROR;
+  }
+
+  if (memcmp(req->url, "https", 5) == 0) {
+    req->isSSL = 1;
+  } else {
+    req->isSSL = 0;
   }
 
   if (qtelhttp->state == QTEL_HTTP_STATE_NON_ACTIVE) {
@@ -107,6 +115,16 @@ QTEL_Status_t QTEL_HTTP_SendRequest(QTEL_HTTP_HandlerTypeDef *qtelhttp,
 
   status = httpConfigure(qtelhttp);
   if (status != QTEL_OK) goto endCmd;
+
+  if (req->isSSL) {
+    AT_DataSetString(&paramData[0], "sslctxid");
+    AT_DataSetNumber(&paramData[1], qtelhttp->sslContextId);
+    if (AT_Command(&qtelPtr->atCmd, "+QHTTPCFG", 2, paramData, 0, 0) != AT_OK)
+      goto endCmd;
+
+    status = configSSL(qtelhttp);
+    if (status != QTEL_OK) goto endCmd;
+  }
 
   AT_DataSetString(&paramData[0], "requestheader");
   AT_DataSetNumber(&paramData[1], (req->isWithHeader)? 1: 0);
@@ -298,5 +316,45 @@ static void onReadIntoFileDone(void *app, AT_Data_t *resp)
   hsim->rtos.eventSet(QTEL_RTOS_EVT_HTTP_NEW_STATE);
 }
 
+
+static QTEL_Status_t configSSL(QTEL_HTTP_HandlerTypeDef *qtelhttp)
+{
+  QTEL_HandlerTypeDef *qtelPtr = qtelhttp->qtel;
+
+  AT_Data_t paramData[3] = {
+      AT_String("sslversion"),
+      AT_Number(qtelhttp->sslContextId),
+      AT_Number(1),
+  };
+
+  if (AT_Command(&qtelPtr->atCmd, "+QSSLCFG", 3, paramData, 0, 0) != AT_OK)
+  {
+    return QTEL_ERROR;
+  }
+
+  AT_Data_t paramData1[4] = {
+      AT_String("ciphersuite"),
+      AT_Number(qtelhttp->sslContextId),
+      AT_Bytes("0XFFFF", 6),
+  };
+
+  if (AT_Command(&qtelPtr->atCmd, "+QSSLCFG", 3, paramData1, 0, 0) != AT_OK)
+  {
+    return QTEL_ERROR;
+  }
+
+  AT_Data_t paramData2[4] = {
+      AT_String("seclevel"),
+      AT_Number(qtelhttp->sslContextId),
+      AT_Number(0),
+  };
+
+  if (AT_Command(&qtelPtr->atCmd, "+QSSLCFG", 3, paramData2, 0, 0) != AT_OK)
+  {
+    return QTEL_ERROR;
+  }
+
+  return QTEL_OK;
+}
 
 #endif /* QTEL_EN_FEATURE_HTTP */
