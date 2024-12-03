@@ -163,6 +163,7 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
   // check response
   if (qtelPtr->GPRS_network_status == 1 || qtelPtr->GPRS_network_status == 5) {
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
+    qtelPtr->tick.checkNetworkGPRSorLTE = 0;
 
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
@@ -211,6 +212,7 @@ QTEL_Status_t QTEL_CheckLTENetwork(QTEL_HandlerTypeDef *qtelPtr)
   // check response
   if (qtelPtr->LTE_network_status == 1 || qtelPtr->LTE_network_status == 5) {
     QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED);
+    qtelPtr->tick.checkNetworkGPRSorLTE = 0;
 
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
@@ -288,7 +290,7 @@ QTEL_Status_t QTEL_SetOperator(QTEL_HandlerTypeDef *qtelPtr, const char *operato
   int mode = 4;
   AT_Data_t paramData[3] = {
       AT_Number(0),
-      AT_Number(0),
+      AT_Number(2),
       AT_String(operator),
   };
   AT_Data_t respData[3];
@@ -300,7 +302,7 @@ QTEL_Status_t QTEL_SetOperator(QTEL_HandlerTypeDef *qtelPtr, const char *operato
   }
   QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_RESP_BUF_LOCK);
 
-  AT_DataSetNumber(&respData[0], 0);
+  AT_DataSetNumber(&respData[0], -1);
   AT_DataSetNumber(&respData[1], 0);
   AT_DataSetBuffer(&respData[2], qtelPtr->respBuffer, QTEL_RESP_BUFFER_SIZE);
 
@@ -312,18 +314,29 @@ QTEL_Status_t QTEL_SetOperator(QTEL_HandlerTypeDef *qtelPtr, const char *operato
   }
 
   if (mode == respData[0].value.number) {
-    if (mode == 4) {
+    if (mode == 4 && operator != 0 && operator[0] == 0) {
       // check format and operator
-      if (respData[1].value.number == 0 && strncmp(respData[0].value.string, operator, QTEL_RESP_BUFFER_SIZE) == 0) {
+      if (respData[1].value.number == 2 && strncmp(respData[0].value.string, operator, QTEL_RESP_BUFFER_SIZE) == 0) {
          goto endFunc;
       }
     }
     else goto endFunc;
   }
-  
-  paramData[0].value.number = mode;
-  status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+COPS", 3, paramData, 0, 0, 190000);
+
+  paramData[0].value.number = 2; // deregister network
+  status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+COPS", 1, paramData, 0, 0, 190000);
   if (status != AT_OK) goto endFunc;
+  
+  qtelPtr->delay(10);
+
+  paramData[0].value.number = mode;
+  if (mode == 0) {
+    status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+COPS", 1, paramData, 0, 0, 190000);
+    if (status != AT_OK) goto endFunc;
+  } else {
+    status = AT_CommandWithTimeout(&qtelPtr->atCmd, "+COPS", 3, paramData, 0, 0, 190000);
+    if (status != AT_OK) goto endFunc;
+  }
 
 endFunc:
   QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_RESP_BUF_LOCK);
@@ -372,6 +385,23 @@ QTEL_Status_t QTEL_GetOperator(QTEL_HandlerTypeDef *qtelPtr)
   };
 
   status = AT_Check(&qtelPtr->atCmd, "+COPS", 3, respData);
+  if (status != AT_OK) {
+    return (QTEL_Status_t) status;
+  }
+
+  return QTEL_OK;
+}
+
+
+QTEL_Status_t QTEL_GetNetworkInfo(QTEL_HandlerTypeDef *qtelPtr)
+{
+  AT_Status_t status;
+  AT_Data_t respData[2] = {
+      AT_Buffer((uint8_t*)qtelPtr->selectedAccessTechnology, QTEL_ACT_BUFFER_SIZE),
+      AT_Buffer((uint8_t*)qtelPtr->registeredOperatorNumeric, QTEL_OPERATOR_NUMERIC_BUFFER_SIZE),
+  };
+
+  status = AT_Command(&qtelPtr->atCmd, "+QNWINFO", 0, 0, 2, respData);
   if (status != AT_OK) {
     return (QTEL_Status_t) status;
   }

@@ -24,6 +24,7 @@ QTEL_Status_t QTEL_GetTime(QTEL_HandlerTypeDef*, QTEL_Datetime_t*);
 QTEL_Status_t QTEL_CheckSugnal(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_SetOperator(QTEL_HandlerTypeDef*, const char *operator);
 QTEL_Status_t QTEL_GetOperator(QTEL_HandlerTypeDef*);
+QTEL_Status_t QTEL_GetNetworkInfo(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_GetAvailableOperator(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_GetSIMInfo(QTEL_HandlerTypeDef*);
 QTEL_Status_t QTEL_CheckQENG(QTEL_HandlerTypeDef*);

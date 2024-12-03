@@ -36,6 +36,8 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
   qtelPtr->network_status = 0;
   qtelPtr->isRespConnectHandle = 0;
 
+  qtelPtr->checkNetworkTimeoutRetry = 0;
+
   qtelPtr->atCmd.serial.read     = qtelPtr->serial.read;
   qtelPtr->atCmd.serial.readinto = qtelPtr->serial.readinto;
   qtelPtr->atCmd.serial.readline = qtelPtr->serial.readline;
@@ -240,6 +242,9 @@ void QTEL_SetState(QTEL_HandlerTypeDef *qtelPtr, QTEL_State_t newState)
   if (newState != QTEL_STATE_POWERING_DOWN) {
     qtelPtr->tick.poweringDown = 0;
   }
+  if (newState != QTEL_STATE_ACTIVE) {
+    qtelPtr->tick.active = 0;
+  }
 }
 
 static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
@@ -375,9 +380,13 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
     status = QTEL_SetOperator(qtelPtr, qtelPtr->operator);
     if (status == QTEL_TIMEOUT) {
+      qtelPtr->operator = 0;
       QTEL_Restart(qtelPtr);
       break;
     }
+
+    qtelPtr->tick.checkNetworkGPRSorLTE = qtelPtr->getTick();
+    qtelPtr->tick.changedState = qtelPtr->getTick();
 
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING);
 
@@ -396,12 +405,15 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   case QTEL_STATE_ACTIVE:
     QTEL_Debug("Active");
     qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_ACTIVED);
+    qtelPtr->checkNetworkTimeoutRetry = 0;
+    qtelPtr->tick.starting = qtelPtr->getTick();
 
+    QTEL_GetNetworkInfo(qtelPtr);
     QTEL_GetOperator(qtelPtr);
+
     //QTEL_CheckQENG(qtelPtr);
     QTEL_Debug("connected to %s", qtelPtr->registeredOperator);
 
-    // QTEL_GetAvailableOperator(qtelPtr);
     if (qtelPtr->net.state >= QTEL_NET_STATE_ACTIVATING_PENDING
         && (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED) 
             || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))) 
@@ -478,7 +490,11 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
         break;
       }
 
-      if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 180000)) {
+      if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.changedState, 600000)) {
+        qtelPtr->checkNetworkTimeoutRetry += 1;
+        if (qtelPtr->callbacks.onCheckingNetworkTimeout)
+          qtelPtr->callbacks.onCheckingNetworkTimeout(qtelPtr->checkNetworkTimeoutRetry);
+
         QTEL_Restart(qtelPtr);
       }
     }
@@ -488,6 +504,12 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
     if (QTEL_IsTimeout(qtelPtr, qtelPtr->tick.checksignal, 10000)) {
       qtelPtr->tick.checksignal = qtelPtr->getTick();
       QTEL_CheckSugnal(qtelPtr);
+    }
+
+    if (qtelPtr->tick.checkNetworkGPRSorLTE > 0 && QTEL_IsTimeout(qtelPtr, qtelPtr->tick.checkNetworkGPRSorLTE, 600000))
+    {
+      if (qtelPtr->callbacks.onSearchingGPRSorLTETimeout)
+        qtelPtr->callbacks.onSearchingGPRSorLTETimeout();
     }
     break;
 
@@ -685,6 +707,8 @@ static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t *data)
   case 5:
   case 1:
     QTEL_Debug("GPRS network registered");
+    qtelPtr->tick.checkNetworkGPRSorLTE = 0;
+
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
       if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)
@@ -715,12 +739,14 @@ static void onLTENetworkStatusUpdated(void *app, AT_Data_t *data)
   QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
 
   if (data->type != AT_NUMBER) return;
-  qtelPtr->GPRS_network_status = data->value.number;
+  qtelPtr->LTE_network_status = data->value.number;
 
-  switch (qtelPtr->GPRS_network_status) {
+  switch (qtelPtr->LTE_network_status) {
   case 5:
   case 1:
     QTEL_Debug("LTE network registered");
+    qtelPtr->tick.checkNetworkGPRSorLTE = 0;
+
 #if QTEL_EN_FEATURE_NET
     if (qtelPtr->state == QTEL_STATE_ACTIVE) {
       if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVATING_PENDING)

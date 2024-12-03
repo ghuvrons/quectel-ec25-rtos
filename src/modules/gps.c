@@ -47,7 +47,6 @@ static const QTEL_GPS_Config_t defaultConfig = {
                         QTEL_AGPS_MODE_AGLONASS_CP_MSB_4G       |
                         QTEL_AGPS_MODE_AGLONASS_CP_MSA_4G,
   .mode               = QTEL_GPS_MS_BASED,
-  .hyridMaxAllowedMode= QTEL_GPS_MS_ASSISTED,
   .AGPS_Protocols     = QTEL_AGPS_PTC_USER_PLANE_LPP |
                         QTEL_AGPS_PTC_CONTROL_PLANE_LPP,
   .AGLONASS_Protocols = QTEL_AGLONASS_PTC_CONTROL_PLANE_RRLP  |
@@ -352,10 +351,6 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
   AT_Data_t respData[1] = {
       AT_Number(0),
   };
-
-  if (qtelGps->config.hyridMaxAllowedMode != 0 && mode > qtelGps->config.hyridMaxAllowedMode) {
-    mode = qtelGps->config.hyridMaxAllowedMode;
-  }
 
   if (mode != QTEL_GPS_STANDALONE && qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) {
     mode = QTEL_GPS_STANDALONE;

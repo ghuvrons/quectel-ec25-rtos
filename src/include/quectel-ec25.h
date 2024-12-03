@@ -23,6 +23,9 @@
 
 #define RESP_BUF_LOCK_TIMEOUT 60000
 
+#define QTEL_ACT_BUFFER_SIZE              32
+#define QTEL_OPERATOR_NUMERIC_BUFFER_SIZE 8
+
 typedef enum {
   QTEL_STATE_POWERED_DOWN,
   QTEL_STATE_POWERING_DOWN,
@@ -45,6 +48,8 @@ typedef struct QTEL_HandlerTypeDef {
   uint8_t             errors;
   uint8_t             signal; // 0 - 100
 
+  uint8_t checkNetworkTimeoutRetry;
+
   struct {
     uint32_t starting;
     uint32_t poweringDown;
@@ -52,7 +57,9 @@ typedef struct QTEL_HandlerTypeDef {
     uint32_t checkAT;
     uint32_t checkSIM;
     uint32_t checkNetwork;
+    uint32_t checkNetworkGPRSorLTE;
     uint32_t checksignal;
+    uint32_t active;
   } tick;
 
   QTEL_Status_t (*resetPower)(void);
@@ -79,6 +86,8 @@ typedef struct QTEL_HandlerTypeDef {
   uint8_t LTE_network_status;
   const char *operator;
   char registeredOperator[QTEL_OPERATOR_BUFFER_SIZE+1];
+  char registeredOperatorNumeric[QTEL_OPERATOR_NUMERIC_BUFFER_SIZE+1];
+  char selectedAccessTechnology[QTEL_ACT_BUFFER_SIZE+1];
   char SIM_SN[QTEL_SIM_SN_BUFFER_SIZE+1];
   char SIM_IMEI[QTEL_SIM_IMEI_BUFFER_SIZE+1];
   char iccid[QTEL_ICCID_BUFFER_SIZE+1];
@@ -86,6 +95,8 @@ typedef struct QTEL_HandlerTypeDef {
   struct {
     void (*onReady)(void);
     void (*onActive)(void);
+    void (*onCheckingNetworkTimeout)(uint8_t retry);
+    void (*onSearchingGPRSorLTETimeout)(void);
   } callbacks;
 
   #if QTEL_EN_FEATURE_NET
