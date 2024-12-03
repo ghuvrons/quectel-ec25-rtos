@@ -60,8 +60,7 @@
 
 typedef enum {
   QTEL_GPS_STATE_NON_ACTIVE,
-  QTEL_GPS_STATE_SETUP,
-  QTEL_GPS_STATE_WAITING_NTP,
+  QTEL_GPS_STATE_STARTING,
   QTEL_GPS_STATE_FIXING,
   QTEL_GPS_STATE_FIXED,
 } QTEL_GPS_State_t;
@@ -122,6 +121,7 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   uint32_t            stateTick;
   uint32_t            getLocTick;
   uint8_t             isConfigured;
+  uint8_t             isOneExtraActive;
   QTEL_GPS_Config_t   config;
   uint8_t             acquireErrorCounter;
   uint32_t            agpsTick;
@@ -141,6 +141,7 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef*, void *qtelPtr);
 void          QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef*, const QTEL_GPS_Config_t*);
 void          QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_State_t newState);
 void          QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef*);
+void          QTEL_GPS_OnPoweredDown(QTEL_GPS_HandlerTypeDef*);
 QTEL_Status_t QTEL_GPS_SetupConfiguration(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_Config_t*);
 void          QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef*);
 void          QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef*);

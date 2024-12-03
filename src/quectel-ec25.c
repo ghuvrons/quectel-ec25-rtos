@@ -290,6 +290,10 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     QTEL_NET_OnPoweredDown(&qtelPtr->net);
 #endif /* QTEL_EN_FEATURE_NET */
 
+#if QTEL_EN_FEATURE_GPS
+    QTEL_GPS_OnPoweredDown(&qtelPtr->gps);
+#endif /* QTEL_EN_FEATURE_GPS */
+
     qtelPtr->delay(1000);
     QTEL_Debug("reset power");
     qtelPtr->state = QTEL_STATE_STARTING;
@@ -420,6 +424,13 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     {
       QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING_DELAY);
     }
+
+#if QTEL_EN_FEATURE_GPS
+    if (qtelPtr->gps.isEnable && qtelPtr->gps.state == QTEL_GPS_STATE_NON_ACTIVE) {
+      QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_STARTING);
+    }
+#endif /* QTEL_EN_FEATURE_GPS */
+
     break;
 
   default: break;
@@ -731,6 +742,15 @@ static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t *data)
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
     break;
   }
+
+#if QTEL_EN_FEATURE_NET
+  if (qtelPtr->net.state >= QTEL_NET_STATE_ACTIVE
+      && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+      && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))
+  {
+    QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+  }
+#endif /* QTEL_EN_FEATURE_NET */
 }
 
 
@@ -769,6 +789,15 @@ static void onLTENetworkStatusUpdated(void *app, AT_Data_t *data)
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED);
     break;
   }
+
+#if QTEL_EN_FEATURE_NET
+  if (qtelPtr->net.state >= QTEL_NET_STATE_ACTIVE
+      && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+      && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))
+  {
+    QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+  }
+#endif /* QTEL_EN_FEATURE_NET */
 }
 
 

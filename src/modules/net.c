@@ -109,11 +109,6 @@ void QTEL_NET_OnNewState(QTEL_NET_HandlerTypeDef *qtelNet)
     qtelNet->state = QTEL_NET_STATE_ACTIVE;
 
   case QTEL_NET_STATE_ACTIVE:
-#if QTEL_EN_FEATURE_GPS
-    if (qtelPtr->gps.isEnable && qtelPtr->gps.state == QTEL_GPS_STATE_NON_ACTIVE) {
-      QTEL_GPS_SetState(&qtelPtr->gps, QTEL_GPS_STATE_SETUP);
-    }
-#endif /* QTEL_EN_FEATURE_GPS */
 #if QTEL_EN_FEATURE_SOCKET
     if (qtelPtr->socketManager.state == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) {
       QTEL_SockManager_SetState(&qtelPtr->socketManager, QTEL_SOCKH_STATE_PDP_ACTIVATING);

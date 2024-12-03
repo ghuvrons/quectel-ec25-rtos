@@ -180,6 +180,15 @@ QTEL_Status_t QTEL_CheckGPRSNetwork(QTEL_HandlerTypeDef *qtelPtr)
 
   else {
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED);
+
+#if QTEL_EN_FEATURE_NET
+    if (qtelPtr->net.state >= QTEL_NET_STATE_ACTIVE
+        && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+        && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))
+    {
+      QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+    }
+#endif /* QTEL_EN_FEATURE_NET */
   }
 
   return QTEL_OK;
@@ -229,6 +238,15 @@ QTEL_Status_t QTEL_CheckLTENetwork(QTEL_HandlerTypeDef *qtelPtr)
 
   else {
     QTEL_UNSET_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED);
+
+#if QTEL_EN_FEATURE_NET
+    if (qtelPtr->net.state >= QTEL_NET_STATE_ACTIVE
+        && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+        && !QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))
+    {
+      QTEL_NET_SetState(&qtelPtr->net, QTEL_NET_STATE_ACTIVATING);
+    }
+#endif /* QTEL_EN_FEATURE_NET */
   }
 
   return QTEL_OK;

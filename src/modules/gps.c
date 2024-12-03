@@ -97,12 +97,16 @@ void QTEL_GPS_SetupConfig(QTEL_GPS_HandlerTypeDef *qtelGps, const QTEL_GPS_Confi
   qtelGps->config.key = QTEL_GPS_CONFIG_KEY;
 }
 
+void QTEL_GPS_OnPoweredDown(QTEL_GPS_HandlerTypeDef *qtelGps)
+{
+  QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
+}
+
 void QTEL_GPS_SetState(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_State_t newState)
 {
   qtelGps->state = newState;
   ((QTEL_HandlerTypeDef*) qtelGps->qtel)->rtos.eventSet(QTEL_RTOS_EVT_GPS_NEW_STATE);
 }
-
 
 void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
 {
@@ -113,26 +117,22 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
   switch (qtelGps->state) {
   case QTEL_GPS_STATE_NON_ACTIVE:
     qtelGps->isConfigured = 0;
+    qtelGps->isOneExtraActive = 0;
     break;
 
-  case QTEL_GPS_STATE_SETUP:
+  case QTEL_GPS_STATE_STARTING:
+    if (qtelPtr->state < QTEL_STATE_ACTIVE) {
+      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
+      break;
+    }
+
     if (setConfiguration(qtelGps) != QTEL_OK) {
       QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
       break;
     }
 
-    if (!QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
-      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_WAITING_NTP);
-      break;
-    }
-#if QTEL_EN_FEATURE_GPS_ONEXTRA
-    if (configureOneXTRA(qtelGps) != QTEL_OK) {
-      break;
-    }
-#endif /* QTEL_EN_FEATURE_GPS_ONEXTRA */
-
     if (startGPS(qtelGps, qtelGps->config.mode) != QTEL_OK) {
-      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
+      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
       break;
     }
 
@@ -170,17 +170,7 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
   case QTEL_GPS_STATE_NON_ACTIVE:
     if (qtelPtr->state >= QTEL_STATE_ACTIVE) {
       if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 2000)) {
-        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
-      }
-    }
-    break;
-
-  case QTEL_GPS_STATE_WAITING_NTP:
-    if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 1000)) {
-      qtelGps->stateTick = qtelPtr->getTick();
-
-      if (QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
-        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
       }
     }
     break;
@@ -191,6 +181,16 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
         QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXED);
         break;
       }
+
+#if QTEL_EN_FEATURE_GPS_ONEXTRA
+      if (!qtelGps->isOneExtraActive
+          && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
+          && QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED))
+      {
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
+        break;
+      }
+#endif
     }
 
 #if QTEL_EN_FEATURE_NET
@@ -238,7 +238,7 @@ void QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef *qtelGps)
   qtelGps->isEnable = 1;
 
   if (qtelPtr->state >= QTEL_STATE_ACTIVE) {
-    QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_SETUP);
+    QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
   }
 }
 
@@ -368,6 +368,13 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
   stopGPS(qtelGps);
 
 activateGPS:
+#if QTEL_EN_FEATURE_GPS_ONEXTRA
+  if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE && QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
+    if (configureOneXTRA(qtelGps) == QTEL_OK) {
+      qtelGps->isOneExtraActive = 1;
+    }
+  }
+#endif
   if (AT_Command(&qtelPtr->atCmd, "+QGPS", 1, paramData, 0, 0) != AT_OK)
     return QTEL_ERROR;
 
