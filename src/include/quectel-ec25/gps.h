@@ -117,14 +117,12 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   void                *qtel;
   uint8_t             isEnable;
   QTEL_GPS_State_t    state;
-  QTEL_GPS_Mode_t     mode;
   uint32_t            stateTick;
   uint32_t            getLocTick;
   uint8_t             isConfigured;
   uint8_t             isOneExtraActive;
   QTEL_GPS_Config_t   config;
   uint8_t             acquireErrorCounter;
-  uint32_t            agpsTick;
 
   struct {
     float latitude;
