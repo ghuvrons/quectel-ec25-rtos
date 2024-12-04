@@ -82,7 +82,6 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
   qtelGps->qtel = qtelPtr;
   qtelGps->state = QTEL_GPS_STATE_NON_ACTIVE;
   qtelGps->stateTick = 0;
-  qtelGps->agpsTick = 0;
 
   if (qtelGps->config.key != QTEL_GPS_CONFIG_KEY) {
     QTEL_GPS_SetupConfig(qtelGps, &defaultConfig);
@@ -384,7 +383,6 @@ activateGPS:
     return QTEL_ERROR;
 
   qtelGps->getLocTick = qtelPtr->getTick();
-  qtelGps->mode = mode;
   return QTEL_OK;
 }
 
