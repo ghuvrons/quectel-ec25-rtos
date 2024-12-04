@@ -184,6 +184,7 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
 
 #if QTEL_EN_FEATURE_GPS_ONEXTRA
       if (!qtelGps->isOneExtraActive
+          && qtelGps->config.oneXTRA.dataURL != 0
           && qtelPtr->net.state == QTEL_NET_STATE_ACTIVE
           && QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED))
       {
@@ -369,10 +370,8 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
 
 activateGPS:
 #if QTEL_EN_FEATURE_GPS_ONEXTRA
-  if (qtelPtr->net.state == QTEL_NET_STATE_ACTIVE && QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
-    if (configureOneXTRA(qtelGps) == QTEL_OK) {
-      qtelGps->isOneExtraActive = 1;
-    }
+  if (QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
+    configureOneXTRA(qtelGps);
   }
 #endif
   if (AT_Command(&qtelPtr->atCmd, "+QGPS", 1, paramData, 0, 0) != AT_OK)
@@ -439,6 +438,10 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
     else return QTEL_OK;
 
+    if (qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) {
+      goto handleError;
+    }
+
     QTEL_FILE_RemoveFile(&qtelPtr->file, QTEL_ONEXTRA_TMP_FILE);
     if (QTEL_HTTP_DownloadAndSave(&qtelPtr->http,
                                   qtelGps->config.oneXTRA.dataURL,
@@ -460,6 +463,8 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     AT_DataSetString(&paramData[0], QTEL_ONEXTRA_TMP_FILE);
     if (AT_Command(&qtelPtr->atCmd, "+QGPSXTRADATA", 1, paramData, 0, 0) != AT_OK)
       goto handleError;
+
+    qtelGps->isOneExtraActive = 1;
   }
   else {
     // disable oneXtra
