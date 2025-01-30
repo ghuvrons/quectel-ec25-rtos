@@ -401,6 +401,8 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
       AT_Buffer(xtratimeStr, sizeof(xtratimeStr)),
   };
 
+  qtelGps->isOneExtraActive = 0;
+
   if (qtelGps->config.oneXTRA.dataURL != 0) {
     if (AT_Check(&qtelPtr->atCmd, "+QGPSXTRA", 1, respData) != AT_OK)
       return QTEL_ERROR;
@@ -428,6 +430,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
       // if currenttime > (xtratime (expiredtime) - 1 day)
       if (QTEL_Datetime_Diff(&currenttime, &xtratime) <= 1440)
       {
+        qtelGps->isOneExtraActive = 1;
         return QTEL_OK;
       }
 
@@ -440,7 +443,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
                (int) currenttime.second
                );
     }
-    else return QTEL_OK;
+    else goto handleError;
 
     if (qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) {
       goto handleError;
