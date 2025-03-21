@@ -33,6 +33,7 @@ typedef enum {
   QTEL_STATE_STARTING,
   QTEL_STATE_CONFIGURATION,
   QTEL_STATE_CHECK_SIMCARD,
+  QTEL_STATE_CHECK_FUN,
   QTEL_STATE_CHECK_NETWORK,
   QTEL_STATE_ACTIVE,
 } QTEL_State_t;
@@ -81,6 +82,7 @@ typedef struct QTEL_HandlerTypeDef {
     QTEL_Status_t (*eventClear)(uint32_t events);
   } rtos;
 
+  int8_t CFUN;
   uint8_t network_status;
   uint8_t GPRS_network_status;
   uint8_t LTE_network_status;
@@ -88,8 +90,10 @@ typedef struct QTEL_HandlerTypeDef {
   char registeredOperator[QTEL_OPERATOR_BUFFER_SIZE+1];
   char registeredOperatorNumeric[QTEL_OPERATOR_NUMERIC_BUFFER_SIZE+1];
   char selectedAccessTechnology[QTEL_ACT_BUFFER_SIZE+1];
-  char SIM_SN[QTEL_SIM_SN_BUFFER_SIZE+1];
-  char SIM_IMEI[QTEL_SIM_IMEI_BUFFER_SIZE+1];
+  char firmwareVersion[QTEL_FIRMWARE_V_BUFFER_SIZE+1];
+  char SN[QTEL_SN_BUFFER_SIZE+1];
+  char IMEI[QTEL_IMEI_BUFFER_SIZE+1];
+  char IMSI[QTEL_IMSI_BUFFER_SIZE+1];
   char iccid[QTEL_ICCID_BUFFER_SIZE+1];
 
   struct {

@@ -21,10 +21,12 @@ static void checkGPRSNetwork(QTEL_HandlerTypeDef*);
 static void checkLTENetwork(QTEL_HandlerTypeDef*);
 static void onReady(void *app, AT_Data_t*);
 static void onSIMReady(void *app, AT_Data_t*);
+static void onCFUN(void *app, AT_Data_t*);
 static void onNetworkStatusUpdated(void *app, AT_Data_t*);
 static void onGPRSNetworkStatusUpdated(void *app, AT_Data_t*);
 static void onLTENetworkStatusUpdated(void *app, AT_Data_t*);
 static void onGetRespConnect(void *app, uint8_t *data, uint16_t len);
+static void onGetFirmwareVersion(void *app, uint8_t *data, uint16_t len);
 static void onPoweredDown(void *app, uint8_t *data, uint16_t len);
 
 
@@ -59,6 +61,12 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
   AT_DataSetBuffer(simStatus, simStatusStr, 16);
   AT_On(&qtelPtr->atCmd, "+CPIN", qtelPtr, 1, simStatus, onSIMReady);
 
+
+  AT_Data_t *CFUN_Data = malloc(sizeof(AT_Data_t));
+  AT_DataSetNumber(CFUN_Data, 0);
+  AT_On(&qtelPtr->atCmd, "+CFUN", qtelPtr, 1, CFUN_Data, onCFUN);
+
+  AT_ReadlineOn(&qtelPtr->atCmd, "Revision", qtelPtr, onGetFirmwareVersion);
   AT_ReadlineOn(&qtelPtr->atCmd, "CONNECT", qtelPtr, onGetRespConnect);
   AT_ReadlineOn(&qtelPtr->atCmd, "POWERED DOWN", qtelPtr, onPoweredDown);
 
@@ -116,6 +124,7 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 
   qtelPtr->status = 0;
   qtelPtr->events = 0;
+  qtelPtr->CFUN = -1;
 
   AT_Start(&qtelPtr->atCmd);
 
@@ -228,7 +237,6 @@ QTEL_Status_t QTEL_ResetSIM(QTEL_HandlerTypeDef *qtelPtr)
   return QTEL_OK;
 }
 
-
 void QTEL_SetState(QTEL_HandlerTypeDef *qtelPtr, QTEL_State_t newState)
 {
   qtelPtr->state = newState;
@@ -273,6 +281,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     qtelPtr->debug.rebootCounter += 1;
 #endif
 
+    qtelPtr->CFUN = -1;
     qtelPtr->signal = 0;
     QTEL_UNSET_STATUS(qtelPtr,  QTEL_STATUS_CONFIGURED | 
                                 QTEL_STATUS_SIM_READY | 
@@ -311,6 +320,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
 
       // disable echo
       QTEL_Echo(qtelPtr, 0);
+      QTEL_GetFirmwareVersion(qtelPtr);
 
       //
       QTEL_Debug("config urcport");
@@ -350,8 +360,8 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
       QTEL_SET_STATUS(qtelPtr, QTEL_STATUS_CONFIGURED);
 
       if (isNeedReset) {
-        QTEL_Debug("reseting SIM");
-        QTEL_ResetSIM(qtelPtr);
+        QTEL_Restart(qtelPtr);
+        break;
       }
     }
 
@@ -366,13 +376,43 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
     qtelPtr->signal = 0;
     if (QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_SIM_READY))
     {
-      QTEL_GetSIMInfo(qtelPtr);
-      QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_NETWORK);
+      QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_FUN);
     }
     else
     {
       qtelPtr->tick.checkSIM = qtelPtr->getTick();
       checkSIM(qtelPtr);
+    }
+    break;
+
+  case QTEL_STATE_CHECK_FUN:
+    if (qtelPtr->CFUN == -1) {
+      AT_DataSetNumber(&respData[0], 0);
+      atstatus = AT_Check(&qtelPtr->atCmd, "+CFUN", 1, respData);
+      if (atstatus != AT_OK ||
+          respData[0].type != AT_NUMBER ||
+          respData[0].value.number != 1)
+      {
+        qtelPtr->CFUN = respData[0].value.number;
+      }
+    }
+
+    if (qtelPtr->CFUN != 1) {
+      atstatus = AT_Command(&qtelPtr->atCmd, "+CFUN=1", 0, 0, 0, 0);
+      if (atstatus != AT_OK) {
+        QTEL_Restart(qtelPtr);
+        break;
+      }
+      qtelPtr->CFUN = 1;
+    }
+    QTEL_GetInfo(qtelPtr);
+
+    if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING) &&
+        QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED))
+    {
+      QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
+    } else {
+      QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_NETWORK);
     }
     break;
 
@@ -531,14 +571,7 @@ static void loop(QTEL_HandlerTypeDef *qtelPtr)
 static void checkSIM(QTEL_HandlerTypeDef *qtelPtr) {
   QTEL_Debug("Checking SIM....");
   if (QTEL_CheckSIMCard(qtelPtr) == QTEL_OK) {
-    QTEL_GetSIMInfo(qtelPtr);
-    if (!QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERING) &&
-        QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_NET_REGISTERED))
-    {
-      QTEL_SetState(qtelPtr, QTEL_STATE_ACTIVE);
-      return;
-    }
-    QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_NETWORK);
+    QTEL_SetState(qtelPtr, QTEL_STATE_CHECK_FUN);
   }
   else {
     QTEL_Debug("SIM Not Ready");
@@ -675,6 +708,12 @@ static void onSIMReady(void *app, AT_Data_t *data)
   memset(data->ptr, 0, 5);
 }
 
+static void onCFUN(void *app, AT_Data_t *data)
+{
+  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
+
+  qtelPtr->CFUN = data->value.number;
+}
 
 static void onNetworkStatusUpdated(void *app, AT_Data_t *data)
 {
@@ -823,6 +862,25 @@ static void onGetRespConnect(void *app, uint8_t *data, uint16_t len)
         break;
       }
     }
+  }
+}
+
+
+static void onGetFirmwareVersion(void *app, uint8_t *data, uint16_t len)
+{
+  QTEL_HandlerTypeDef *qtelPtr = (QTEL_HandlerTypeDef*)app;
+
+  // Revision:
+  if (len > 10 && data[8] == ':' && data[9] == ' ') {
+    data = &data[10];
+    len -= 10;
+
+    if (data[len-2] == '\r' && data[len-1] == '\n') len -= 2;
+
+    if (len > QTEL_FIRMWARE_V_BUFFER_SIZE) len = QTEL_FIRMWARE_V_BUFFER_SIZE;
+    else qtelPtr->firmwareVersion[len] = 0;
+
+    memcpy(qtelPtr->firmwareVersion, data, len);
   }
 }
 

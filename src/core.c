@@ -25,33 +25,6 @@ QTEL_Status_t QTEL_CheckAT(QTEL_HandlerTypeDef *qtelPtr)
 }
 
 
-QTEL_Status_t QTEL_GetFirmwareVersion(QTEL_HandlerTypeDef *qtelPtr)
-{
-  QTEL_Status_t status = QTEL_ERROR;
-
-  if (AT_Command(&qtelPtr->atCmd, "+QGMR", 0, 0, 0, 0) == AT_OK) {
-    status = QTEL_OK;
-  }
-
-  return status;
-}
-
-
-QTEL_Status_t QTEL_GetICCID(QTEL_HandlerTypeDef *qtelPtr)
-{
-  QTEL_Status_t status = QTEL_ERROR;
-  AT_Data_t resp[1] = {
-      AT_Buffer((uint8_t *)qtelPtr->iccid, QTEL_ICCID_BUFFER_SIZE),
-  };
-
-  if (AT_Command(&qtelPtr->atCmd, "AT+QCCID", 0, 0, 1, resp) == AT_OK) {
-    status = QTEL_OK;
-  }
-
-  return status;
-}
-
-
 QTEL_Status_t QTEL_GetError(QTEL_HandlerTypeDef *qtelPtr)
 {
   QTEL_Status_t status = QTEL_ERROR;
@@ -428,29 +401,79 @@ QTEL_Status_t QTEL_GetNetworkInfo(QTEL_HandlerTypeDef *qtelPtr)
 }
 
 
-QTEL_Status_t QTEL_GetSIMInfo(QTEL_HandlerTypeDef *qtelPtr)
+QTEL_Status_t QTEL_GetFirmwareVersion(QTEL_HandlerTypeDef *qtelPtr)
 {
-  AT_Status_t status;
-  AT_Data_t paramData[1] = {
-    AT_Number(0),
-  };
-  AT_Data_t respDataSN[1] = {
-      AT_Buffer((uint8_t *)qtelPtr->SIM_SN, QTEL_SIM_SN_BUFFER_SIZE),
-  };
-  AT_Data_t respDataIMEI[1] = {
-      AT_Buffer((uint8_t *)qtelPtr->SIM_IMEI, QTEL_SIM_IMEI_BUFFER_SIZE),
-  };
-
-  AT_DataSetNumber(&paramData[0], 0);
-  status = AT_Command(&qtelPtr->atCmd, "+CGSN", 1, paramData, 1, respDataSN);
-  if (status != AT_OK) {
-    return (QTEL_Status_t) status;
+  if (qtelPtr->firmwareVersion[0] == 0) {
+    if (AT_Command(&qtelPtr->atCmd, "I", 0, 0, 0, 0) != AT_OK) {
+      return QTEL_ERROR;
+    }
   }
 
-  AT_DataSetNumber(&paramData[0], 1);
-  status = AT_Command(&qtelPtr->atCmd, "+CGSN", 1, paramData, 1, respDataIMEI);
-  if (status != AT_OK) {
-    return (QTEL_Status_t) status;
+  return QTEL_OK;
+}
+
+QTEL_Status_t QTEL_GetInfo(QTEL_HandlerTypeDef *qtelPtr)
+{
+  AT_Status_t status;
+  AT_Data_t paramData[5] = {
+      AT_Number(0),
+      AT_Number(0),
+      AT_Number(0),
+      AT_Number(0),
+      AT_Number(0),
+  };
+  AT_Data_t respDataSN[1] = {
+      AT_Buffer((uint8_t *)qtelPtr->SN, QTEL_SN_BUFFER_SIZE),
+  };
+  AT_Data_t respDataIMEI[1] = {
+      AT_Buffer((uint8_t *)qtelPtr->IMEI, QTEL_IMEI_BUFFER_SIZE),
+  };
+  AT_Data_t respDataIMSI[3] = {
+      AT_Number(0),
+      AT_Number(0),
+      AT_Buffer((uint8_t *)qtelPtr->IMSI, QTEL_IMSI_BUFFER_SIZE),
+  };
+  AT_Data_t respDataICCID[1] = {
+      AT_Buffer((uint8_t *)qtelPtr->iccid, QTEL_ICCID_BUFFER_SIZE),
+  };
+
+  if (qtelPtr->SN[0] == 0) {
+    AT_DataSetNumber(&paramData[0], 0);
+    status = AT_Command(&qtelPtr->atCmd, "+CGSN", 1, paramData, 1, respDataSN);
+    if (status != AT_OK) {
+      return (QTEL_Status_t) status;
+    }
+  }
+
+  if (qtelPtr->IMEI[0] == 0) {
+    AT_DataSetNumber(&paramData[0], 1);
+    status = AT_Command(&qtelPtr->atCmd, "+CGSN", 1, paramData, 1, respDataIMEI);
+    if (status != AT_OK) {
+      return (QTEL_Status_t) status;
+    }
+  }
+
+  if (qtelPtr->IMSI[0] == 0) {
+    //
+    // Reading IMSI - Identifier is 28423
+    // AT+CRSM=176,28423,0,0,9
+
+    AT_DataSetNumber(&paramData[0], 176);
+    AT_DataSetNumber(&paramData[1], 28423);
+    AT_DataSetNumber(&paramData[2], 0);
+    AT_DataSetNumber(&paramData[3], 0);
+    AT_DataSetNumber(&paramData[4], 9);
+    status = AT_Command(&qtelPtr->atCmd, "+CRSM", 5, paramData, 3, respDataIMSI);
+    if (status != AT_OK) {
+      return (QTEL_Status_t) status;
+    }
+  }
+
+  if (qtelPtr->iccid[0] == 0) {
+    status = AT_Command(&qtelPtr->atCmd, "+QCCID", 0, 0, 1, respDataICCID);
+    if (status != AT_OK) {
+      return (QTEL_Status_t) status;
+    }
   }
 
   return QTEL_OK;
