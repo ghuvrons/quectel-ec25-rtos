@@ -119,6 +119,9 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   QTEL_GPS_State_t    state;
   uint32_t            stateTick;
   uint32_t            getLocTick;
+  uint32_t            fixingTick;
+  uint32_t            startAGPSTick;
+  uint8_t             startAGPSCounter;
   uint8_t             isConfigured;
   uint8_t             isOneExtraActive;
   QTEL_GPS_Config_t   config;

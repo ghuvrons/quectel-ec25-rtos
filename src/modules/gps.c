@@ -82,6 +82,9 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
   qtelGps->qtel = qtelPtr;
   qtelGps->state = QTEL_GPS_STATE_NON_ACTIVE;
   qtelGps->stateTick = 0;
+  qtelGps->fixingTick = 0;
+  qtelGps->startAGPSTick = 0;
+  qtelGps->startAGPSCounter = 0;
 
   if (qtelGps->config.key != QTEL_GPS_CONFIG_KEY) {
     QTEL_GPS_SetupConfig(qtelGps, &defaultConfig);
@@ -139,6 +142,7 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
 
   case QTEL_GPS_STATE_FIXING:
     qtelGps->getLocTick = qtelGps->stateTick;
+    qtelGps->fixingTick = 0;
     break;
 
   case QTEL_GPS_STATE_FIXED:
@@ -200,22 +204,34 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
 
 #if QTEL_EN_FEATURE_NET
-    if (qtelGps->config.mode == QTEL_GPS_STANDALONE) {
-      if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 60000)) {
-        if (startGPS(qtelGps, qtelGps->config.mode) != QTEL_OK) {
-          QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
-          break;
+    if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 10000)) {
+      if (qtelGps->config.mode == QTEL_GPS_STANDALONE) {
+        if (qtelGps->fixingTick == 0 || QTEL_IsTimeout(qtelPtr, qtelGps->fixingTick, 60000)) {
+          if (startGPS(qtelGps, qtelGps->config.mode) != QTEL_OK) {
+            QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
+            break;
+          }
+          qtelGps->fixingTick = qtelPtr->getTick();
+          qtelGps->stateTick = qtelPtr->getTick();
         }
-        qtelGps->stateTick = qtelPtr->getTick();
       }
-    }
-    else {
-      if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 1800000)) {
-        if (startGPS(qtelGps, qtelGps->config.mode) != QTEL_OK) {
-          QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
-          break;
+      else {
+        if (qtelGps->fixingTick == 0 || QTEL_IsTimeout(qtelPtr, qtelGps->fixingTick, 120000)) {
+          if (qtelGps->startAGPSTick == 0 || QTEL_IsTimeout(qtelPtr, qtelGps->startAGPSTick, 1800000)) {
+            qtelGps->startAGPSCounter = 0;
+            qtelGps->startAGPSTick = qtelPtr->getTick();
+          } else if (qtelGps->startAGPSCounter < 5)
+            qtelGps->startAGPSCounter += 1;
+          if (qtelGps->startAGPSCounter >= 5) {
+            break;
+          }
+          if (startGPS(qtelGps, qtelGps->config.mode) != QTEL_OK) {
+            QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
+            break;
+          }
+          qtelGps->fixingTick = qtelPtr->getTick();
+          qtelGps->stateTick = qtelPtr->getTick();
         }
-        qtelGps->stateTick = qtelPtr->getTick();
       }
     }
 #endif
