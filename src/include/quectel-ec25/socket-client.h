@@ -33,6 +33,7 @@ typedef enum {
   QTEL_SOCK_STATE_WAIT_PDP_ACTIVE,
   QTEL_SOCK_STATE_OPEN_ERROR,
   QTEL_SOCK_STATE_OPEN,
+  QTEL_SOCK_STATE_CLOSING,
 } QTEL_SocketClient_State_t;
 
 
@@ -47,6 +48,8 @@ typedef struct QTEL_SocketClient_t {
   // configuration
   struct {
     uint32_t timeout;
+    uint32_t openingTimeout;
+    uint32_t closingTimeout;
 //    uint8_t  autoReconnect;
 //    uint16_t reconnectingDelay;
   } config;
@@ -54,7 +57,9 @@ typedef struct QTEL_SocketClient_t {
   // tick register for delay and timeout
   struct {
 //    uint32_t reconnDelay;
+    uint32_t opening;
     uint32_t connecting;
+    uint32_t closing;
   } tick;
 
   // server
@@ -84,8 +89,8 @@ QTEL_Status_t QTEL_SockClient_OnNetOpened(QTEL_SocketClient_t*);
 QTEL_Status_t QTEL_SockClient_OnPoweredDown(QTEL_SocketClient_t*);
 QTEL_Status_t QTEL_SockClient_Loop(QTEL_SocketClient_t*);
 void          QTEL_SockClient_SetBuffer(QTEL_SocketClient_t*, void *buffer);
-QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t*, QTEL_HandlerTypeDef*);
-QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t*);
+QTEL_Status_t QTEL_SockClient_Open(QTEL_SocketClient_t*, QTEL_HandlerTypeDef*, uint32_t timeout);
+QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t*, uint32_t timeout);
 int           QTEL_SockClient_SendData(QTEL_SocketClient_t*, uint8_t *data, uint16_t length);
 
 

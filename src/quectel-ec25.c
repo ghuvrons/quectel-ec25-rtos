@@ -119,7 +119,7 @@ QTEL_Status_t QTEL_Init(QTEL_HandlerTypeDef *qtelPtr)
 void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
 {
   uint32_t notifEvent;
-  uint32_t timeout = 2000; // ms
+  uint32_t timeout = 1000; // ms
   uint32_t lastTO = 0;
 
   qtelPtr->status = 0;

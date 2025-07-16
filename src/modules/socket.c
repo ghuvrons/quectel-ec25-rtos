@@ -66,7 +66,7 @@ void QTEL_SockManager_SetState(QTEL_Socket_HandlerTypeDef *sockMgr, uint8_t newS
   if (newState == QTEL_SOCKH_STATE_PDP_ACTIVATING_PENDING) sockMgr->activatingPendingTick = qtelPtr->getTick();
   else if (newState == QTEL_SOCKH_STATE_PDP_ACTIVATING)    sockMgr->activatingTick = qtelPtr->getTick();
   sockMgr->state = newState;
-  ((QTEL_HandlerTypeDef*) sockMgr->qtel)->rtos.eventSet(QTEL_RTOS_EVT_SOCKH_NEW_EVT);
+  qtelPtr->rtos.eventSet(QTEL_RTOS_EVT_SOCKH_NEW_EVT);
 }
 
 
@@ -79,7 +79,7 @@ void QTEL_SockManager_OnNewState(QTEL_Socket_HandlerTypeDef *sockMgr)
 
   case QTEL_SOCKH_STATE_PDP_ACTIVE:
     for (uint8_t i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
-      if (sockMgr->sockets[i] != 0)
+      if (sockMgr->sockets[i] != NULL)
         QTEL_SockClient_OnNetOpened(sockMgr->sockets[i]);
     }
     break;
@@ -96,7 +96,7 @@ void QTEL_SockManager_OnPoweredDown(QTEL_Socket_HandlerTypeDef *sockMgr)
   }
 
   for (uint8_t i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
-    if (sockMgr->sockets[i] != 0) {
+    if (sockMgr->sockets[i] != NULL) {
       QTEL_SockClient_OnPoweredDown(sockMgr->sockets[i]);
     }
   }
@@ -105,7 +105,7 @@ void QTEL_SockManager_OnPoweredDown(QTEL_Socket_HandlerTypeDef *sockMgr)
 void QTEL_SockManager_CheckSocketsEvents(QTEL_Socket_HandlerTypeDef *sockMgr)
 {
   for (uint8_t i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
-    if (sockMgr->sockets[i] != 0) {
+    if (sockMgr->sockets[i] != NULL) {
       QTEL_SockClient_CheckEvents(sockMgr->sockets[i]);
     }
   }
@@ -159,7 +159,7 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
   uint8_t i;
 
   if (qtelPtr->state < QTEL_STATE_CHECK_SIMCARD) {
-    return;
+    goto socketClientLoop;
   }
 
   switch (sockMgr->state) {
@@ -185,12 +185,32 @@ void QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef *sockMgr)
   default: break;
   }
 
+socketClientLoop:
   for (i = 0; i < QTEL_NUM_OF_SOCKET; i++) {
     if (sockMgr->sockets[i] != 0)
       QTEL_SockClient_Loop(sockMgr->sockets[i]);
   }
 }
 
+int8_t QTEL_SockManager_GetAvailableLinknum(QTEL_Socket_HandlerTypeDef *sockMgr, void *socket)
+{
+  int16_t i;
+
+  for (i = 0; i < QTEL_NUM_OF_SOCKET; i++)
+  {
+    if (socket == sockMgr->sockets[i])
+      return i;
+  }
+
+  // search null
+  for (i = 0; i < QTEL_NUM_OF_SOCKET; i++)
+  {
+    if (sockMgr->sockets[i] == NULL)
+      return i;
+  }
+
+  return -1;
+}
 
 static void onSocketOpened(void *app, AT_Data_t *resp)
 {
@@ -201,21 +221,21 @@ static void onSocketOpened(void *app, AT_Data_t *resp)
   uint16_t err = resp->value.number;
 
   QTEL_SocketClient_t *sock = qtelPtr->socketManager.sockets[linkNum];
-  if (sock != 0) {
-    if (err == 0) {
-      QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENED);
-    }
-    else {
-      sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
-      QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENING_ERROR);
+  if (sock == NULL) return;
 
-      switch (err) {
-      case 550: case 561: case 568: case 569: case 570: case 572: case 573:
-        qtelPtr->socketManager.state = QTEL_SOCKH_STATE_NON_ACTIVE;
-        break;
+  if (err == 0) {
+    QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENED);
+  }
+  else {
+    sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
+    QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENING_ERROR);
 
-      default: break;
-      }
+    switch (err) {
+    case 550: case 561: case 568: case 569: case 570: case 572: case 573:
+      qtelPtr->socketManager.state = QTEL_SOCKH_STATE_NON_ACTIVE;
+      break;
+
+    default: break;
     }
   }
 }
@@ -230,12 +250,13 @@ static void onSocketEvent(void *app, AT_Data_t *resp)
   uint8_t linkNum = resp->value.number;
   QTEL_SocketClient_t *sock = qtelPtr->socketManager.sockets[linkNum];
 
+  if (sock == NULL) return;
+
   if (strncmp(evt, "recv", 4) == 0) {
     QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_RECV_DATA_AVAILABLE);
   }
   else if (strncmp(evt, "closed", 6) == 0) {
-    sock->state = QTEL_SOCK_STATE_CLOSE;
-    QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_CLOSED);
+    QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_CLOSING);
 #if QTEL_DEBUG
     qtelPtr->debug.tcpClosedByServerCounter += 1;
 #endif

@@ -56,7 +56,9 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelNTP->qtel;
 
-  if (qtelPtr->state < QTEL_STATE_ACTIVE || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) return QTEL_ERROR;
+  if (qtelPtr->state < QTEL_STATE_ACTIVE
+      || !(QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+            || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED))) return QTEL_ERROR;
 
   if (qtelNTP->syncTick == 0) {
     QTEL_NTP_Sync(qtelNTP);

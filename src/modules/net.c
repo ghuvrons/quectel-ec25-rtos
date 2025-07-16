@@ -214,8 +214,6 @@ QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t con
   return QTEL_OK;
 }
 
-static uint32_t QTEL_DBG_PDP_STAT = 0;
-static uint32_t QTEL_DBG_PDP_CTR = 0;
 QTEL_Status_t QTEL_NET_ActivatePDP(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId)
 {
   if (contextId > 16) return QTEL_ERROR;
@@ -228,7 +226,6 @@ QTEL_Status_t QTEL_NET_ActivatePDP(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t con
   AT_Data_t paramData[1] = {
     AT_Number(contextId),
   };
-  QTEL_DBG_PDP_CTR = 0;
 
   uint32_t tick = qtelPtr->getTick();
   while (QTEL_IS_STATUS(qtelNet, QTEL_NET_PDP_ACTIVATING)) {
@@ -254,7 +251,6 @@ checkContext:
   status = QTEL_NET_IsPDPActive(qtelNet, contextId, &isActive);
   if (status != QTEL_OK || isActive) goto endFunc;
 
-  QTEL_DBG_PDP_CTR++;
   commandSent++;
   if (commandSent > 3) {
     QTEL_Debug("trouble activate PDP Ctx %d", contextId);
@@ -287,7 +283,6 @@ checkContext:
 
   goto checkContext;
 endFunc:
-  if (status == QTEL_OK) QTEL_DBG_PDP_STAT = 0xFF;
   QTEL_UNSET_STATUS(qtelNet, QTEL_NET_PDP_ACTIVATING);
   return status;
 }

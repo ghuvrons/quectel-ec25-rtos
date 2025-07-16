@@ -45,6 +45,7 @@ void          QTEL_SockManager_CheckSocketsEvents(QTEL_Socket_HandlerTypeDef*);
 QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef*);
 QTEL_Status_t QTEL_SockManager_PDP_Deactivate(QTEL_Socket_HandlerTypeDef *sockMgr);
 void          QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef*);
+int8_t        QTEL_SockManager_GetAvailableLinknum(QTEL_Socket_HandlerTypeDef*, void *socket);
 
 
 #endif /* QTEL_EN_FEATURE_SOCKET */
