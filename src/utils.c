@@ -7,8 +7,11 @@
 
 #include <quectel-ec25.h>
 #include <quectel-ec25/utils.h>
+#include <time.h>
 
 #define num_days_in_month(month, year) (mounth_days[(month)-1] + ((((year)%4) == 0 && (month) == 2)? 1: 0))
+#define IS_DATETIME_VALID(dt) ((dt)->month < 1 || (dt)->month > 12 || \
+                               (dt)->day < 1 || (dt)->day > 31)
 
 const uint8_t mounth_days[12] = {
     31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
@@ -37,126 +40,47 @@ void QTEL_Datetime_SetToUTC(QTEL_Datetime_t *dt)
 
 void QTEL_Datetime_AddSeconds(QTEL_Datetime_t *dt, int addSeconds)
 {
-  int addMinutes  = (addSeconds - (addSeconds%60))/60;
-  int addHours    = (addMinutes - (addMinutes%60))/60;
-  int addDays     = (addHours   - (addHours  %24))/24;
+  struct tm _tm;
+  time_t ts;
 
-  addSeconds %= 60;
-  addMinutes %= 60;
-  addHours   %= 24;
+  if (IS_DATETIME_VALID(dt)) return;
 
-  // add seconds
-  if (dt->second < -addSeconds) {
-    dt->second += 24;
-    addMinutes--;
-  }
-  dt->second += addSeconds;
-  if (dt->second >= 60) {
-    dt->second -= 60;
-    addMinutes++;
-  }
+  _tm.tm_year = dt->year + 100; // Contoh: tahun 2023 akan menjadi 123
+  _tm.tm_mon  = dt->month - 1;   // QTEL_Datetime_t.month dimulai dari 1
+  _tm.tm_mday = dt->day;
+  _tm.tm_hour = dt->hour;
+  _tm.tm_min  = dt->minute;
+  _tm.tm_sec  = dt->second;
 
-  // add minutes
+  ts = mktime(&_tm);
+  ts += addSeconds;
+  localtime_r(&ts, &_tm);
 
-  if (dt->minute < -addMinutes) {
-    dt->minute += 60;
-    addHours--;
-  }
-  dt->minute += addMinutes;
-  if (dt->minute >= 60) {
-    dt->minute -= 60;
-    addHours++;
-  }
-
-  // add hours
-  if (dt->hour < -addHours) {
-    dt->hour += 24;
-    addDays--;
-  }
-  dt->hour += addHours;
-  if (dt->hour >= 24) {
-    dt->hour -= 24;
-    addDays++;
-  }
-
-  QTEL_Datetime_AddDays(dt, addDays);
-}
-
-
-void QTEL_Datetime_AddDays(QTEL_Datetime_t *dt, int days)
-{
-  int tmpAdd;
-  int curr_month_days;
-
-  if (QTEL_Datetime_IsValid(dt) != QTEL_OK) return;
-
-  while (days != 0) {
-    curr_month_days = (int) num_days_in_month(dt->month, dt->year);
-
-    if (days > 0) {
-      if (days > (curr_month_days-dt->day)) {
-        tmpAdd = curr_month_days - dt->day + 1;
-      }
-      else tmpAdd = days;
-      if (tmpAdd > days) break;
-    }
-    else {
-      if (-days >= dt->day) {
-        tmpAdd = -dt->day;
-      }
-      else tmpAdd = days;
-      if (tmpAdd < days) break;
-    }
-
-    dt->day = (uint8_t) (((int)dt->day) + tmpAdd);
-    if (dt->day > curr_month_days) {
-      dt->day -= curr_month_days;
-      dt->month++;
-      if (dt->month > 12) {
-        dt->month = 1;
-        dt->year += 1;
-      }
-    } else if (dt->day == 0) {
-      dt->month--;
-      if (dt->month == 0) {
-        dt->year -= 1;
-        dt->month = 12;
-      }
-      dt->day = num_days_in_month(dt->month, dt->year);
-    }
-    days -= tmpAdd;
-  }
+  dt->year    = _tm.tm_year - 100;
+  dt->month   = _tm.tm_mon + 1;
+  dt->day     = _tm.tm_mday;
+  dt->hour    = _tm.tm_hour;
+  dt->minute  = _tm.tm_min;
+  dt->second  = _tm.tm_sec;
 }
 
 // start from jan 2000
-int QTEL_Datetime_ToSeconds(const QTEL_Datetime_t *dt)
+uint32_t QTEL_Datetime_ToSeconds(const QTEL_Datetime_t *dt)
 {
-  const int sInYear   = 31536000;
-  const int sInDay    = 86400;
-  const int sInHour   = 1440;
-  const int sInMinute = 60;
-  int numSeconds      = 0;
+  struct tm _tm;
+  time_t ts;
 
-  // seconds in years before
-  numSeconds += dt->year * sInYear;
+  if (IS_DATETIME_VALID(dt)) return 0;
 
-  // seconds in leap year
-  numSeconds += ((dt->year-(dt->year%4)/4) + 1) * sInDay;
+  _tm.tm_year = dt->year + 100; // Contoh: tahun 2023 akan menjadi 123
+  _tm.tm_mon  = dt->month - 1;   // QTEL_Datetime_t.month dimulai dari 1
+  _tm.tm_mday = dt->day;
+  _tm.tm_hour = dt->hour;
+  _tm.tm_min  = dt->minute;
+  _tm.tm_sec  = dt->second;
 
-  // seconds in months before
-  for (uint8_t i = 1; i < dt->month; i++) {
-    numSeconds += ((int)num_days_in_month(i, dt->year)) * sInDay;
-  }
-
-  // seconds in days before
-  if (dt->day > 0)
-    numSeconds += (dt->day - 1) * sInDay;
-
-  numSeconds += dt->hour * sInHour;
-  numSeconds += dt->minute * sInMinute;
-  numSeconds += dt->second;
-
-  return numSeconds;
+  ts = mktime(&_tm);
+  return (uint32_t) ts;
 }
 
 

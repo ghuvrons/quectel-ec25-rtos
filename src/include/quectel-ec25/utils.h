@@ -40,10 +40,9 @@
 
 
 QTEL_Status_t QTEL_Datetime_IsValid(const QTEL_Datetime_t*);
-void QTEL_Datetime_SetToUTC(QTEL_Datetime_t*);
-void QTEL_Datetime_AddSeconds(QTEL_Datetime_t*, int seconds);
-void QTEL_Datetime_AddDays(QTEL_Datetime_t*, int days);
-int  QTEL_Datetime_ToSeconds(const QTEL_Datetime_t*);
-int  QTEL_Datetime_Diff(const QTEL_Datetime_t*, const QTEL_Datetime_t*);
+void          QTEL_Datetime_SetToUTC(QTEL_Datetime_t*);
+void          QTEL_Datetime_AddSeconds(QTEL_Datetime_t*, int seconds);
+uint32_t      QTEL_Datetime_ToSeconds(const QTEL_Datetime_t*);
+int           QTEL_Datetime_Diff(const QTEL_Datetime_t*, const QTEL_Datetime_t*);
 
 #endif /* QUECTEL_EC25_UTILS_H_ */
