@@ -36,18 +36,22 @@ static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock);
 
 QTEL_Status_t QTEL_SockClient_Init(QTEL_SocketClient_t *sock, const char *host, uint16_t port, void *buffer)
 {
+  uint8_t i = 0;
   char *sockIP = sock->host;
-  while (*host != '\0') {
+  while (*host != '\0' && i < 63) {
     *sockIP = *host;
     host++;
     sockIP++;
+    i++;
   }
+  *sockIP = 0;
 
   sock->port = port;
 
   if (sock->config.timeout == 0)
     sock->config.timeout = QTEL_SOCK_DEFAULT_TO;
 
+  sock->events = 0;
   sock->linkNum = -1;
   sock->buffer = buffer;
   if (sock->buffer == NULL)
@@ -125,6 +129,7 @@ QTEL_Status_t QTEL_SockClient_CheckEvents(QTEL_SocketClient_t *sock)
   if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_CLOSING)) {
     QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_CLOSING);
     sockClose(sock);
+    sockDisconnectWithLinkNum(sock);
   }
   if (QTEL_BITS_IS(sock->events, QTEL_SOCK_EVENT_ON_CLOSED)) {
     QTEL_BITS_UNSET(sock->events, QTEL_SOCK_EVENT_ON_CLOSED);
@@ -219,11 +224,19 @@ QTEL_Status_t QTEL_SockClient_Close(QTEL_SocketClient_t *sock, uint32_t timeout)
   sock->config.closingTimeout = timeout;
 
   if (sock->linkNum < 0) {
-    QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_CLOSED);
+    sock->state = QTEL_SOCK_STATE_CLOSE;
     return QTEL_OK;
   }
 
   QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_CLOSING);
+  while (sock->state != QTEL_SOCK_STATE_CLOSE) {
+    if (sock->tick.closing && QTEL_IsTimeout(qtelPtr, sock->tick.closing, timeout)) {
+      sock->state = QTEL_SOCK_STATE_CLOSE;
+      sockDisconnectWithLinkNum(sock);
+      return QTEL_TIMEOUT;
+    }
+    qtelPtr->delay(1);
+  }
   return QTEL_OK;
 }
 
@@ -298,7 +311,9 @@ static QTEL_Status_t sockOpen(QTEL_SocketClient_t *sock)
 
   if (sock->isSSL == 1) // USE SSL
   {
-    configSSL(sock);
+    if (configSSL(sock) != QTEL_OK) {
+      goto connectingError;
+    }
 
     AT_Data_t paramData[6] = {
         AT_Number(sock->socketManager->contextId),
@@ -464,6 +479,7 @@ static void sockDisconnectWithLinkNum(QTEL_SocketClient_t *sock)
   if (sock->linkNum < 0) return;
   sock->socketManager->sockets[sock->linkNum] = 0;
   sock->linkNum = -1;
+  sock->events = 0;
 }
 
 static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock)
@@ -473,7 +489,7 @@ static QTEL_Status_t configSSL(QTEL_SocketClient_t *sock)
   AT_Data_t paramData[3] = {
       AT_String("sslversion"),
       AT_Number(sock->socketManager->sslcontextId),
-      AT_Number(4),
+      AT_Number(3),
   };
 
   if (AT_Command(&qtelPtr->atCmd, "+QSSLCFG", 3, paramData, 0, 0) != AT_OK)
