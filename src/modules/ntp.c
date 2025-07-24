@@ -29,6 +29,7 @@ QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *qtelNTP, void *qtelPtr)
   qtelNTP->syncTick = 0;
   qtelNTP->config.resyncInterval = 24*3600;
   qtelNTP->config.retryInterval = 5000;
+  qtelNTP->isSetToGMT = 0;
 
   AT_Data_t *ntpResp = malloc(sizeof(AT_Data_t));
   memset(ntpResp, 0, sizeof(AT_Data_t));
@@ -64,14 +65,14 @@ QTEL_Status_t QTEL_NTP_Loop(QTEL_NTP_HandlerTypeDef *qtelNTP)
     QTEL_NTP_Sync(qtelNTP);
   }
   else if (QTEL_IS_STATUS(qtelNTP, QTEL_NTP_WAS_SYNCED)) {
-    if ((qtelPtr->getTick() - qtelNTP->syncTick) > qtelNTP->config.resyncInterval)
+    if (QTEL_IsTimeout(qtelPtr, qtelNTP->syncTick, qtelNTP->config.resyncInterval))
       QTEL_NTP_Sync(qtelNTP);
   }
   else if (!QTEL_IS_STATUS(qtelNTP, QTEL_NTP_IS_SYNCING)) {
-    if ((qtelPtr->getTick() - qtelNTP->syncTick) > qtelNTP->config.retryInterval)
+    if (QTEL_IsTimeout(qtelPtr, qtelNTP->syncTick, qtelNTP->config.retryInterval))
       QTEL_NTP_Sync(qtelNTP);
   }
-  else if ((qtelPtr->getTick() - qtelNTP->syncTick) > 60000)
+  else if (QTEL_IsTimeout(qtelPtr, qtelNTP->syncTick, 60000))
       QTEL_NTP_Sync(qtelNTP);
 
   return QTEL_OK;
@@ -90,8 +91,11 @@ QTEL_Status_t QTEL_NTP_Sync(QTEL_NTP_HandlerTypeDef *qtelNTP)
   };
 
   // set timezone to GMT
-  AT_DataSetString(&paramData[0], "23/01/01,00:00:00+00");
-  AT_Command(&qtelPtr->atCmd, "+CCLK", 1, paramData, 0, 0);
+  if (!qtelNTP->isSetToGMT) {
+    AT_DataSetString(&paramData[0], "23/01/01,00:00:00+00");
+    AT_Command(&qtelPtr->atCmd, "+CCLK", 1, paramData, 0, 0);
+    qtelNTP->isSetToGMT = 1;
+  }
 
   if (QTEL_NET_ConfigurePDP(&qtelPtr->net, qtelNTP->contextId) != QTEL_OK)
   {

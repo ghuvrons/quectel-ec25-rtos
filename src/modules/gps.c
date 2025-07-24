@@ -60,7 +60,7 @@ static const QTEL_GPS_Config_t defaultConfig = {
       .server   = "supl.google.com:7276",
   },
   .oneXTRA = {
-      .dataURL = "http://xtrapath4.izatcloud.net/xtra3grcej.bin",
+      .dataURL = "http://xtrapath1.izatcloud.net/xtra3grc.bin",
   },
 };
 
@@ -436,7 +436,6 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
       parseTimeStr(&xtratime, respData[1].value.string);
       QTEL_Datetime_AddSeconds(&xtratime, (respData[0].value.number * 60));
 
-
       QTEL_GetTime(qtelPtr, &currenttime);
       QTEL_Datetime_SetToUTC(&currenttime);
 
@@ -449,7 +448,9 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
     else goto handleError;
 
-    if (qtelPtr->net.state != QTEL_NET_STATE_ACTIVE) {
+    if (!(QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+        || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
+    {
       goto handleError;
     }
 

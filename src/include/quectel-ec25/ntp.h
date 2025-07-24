@@ -25,6 +25,7 @@ typedef struct {
   uint16_t  port;
   uint32_t  syncTick;
   void      (*onSynced)(QTEL_Datetime_t);
+  uint8_t   isSetToGMT;
 
   struct {
     uint32_t retryInterval;
