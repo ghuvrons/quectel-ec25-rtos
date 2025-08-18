@@ -48,6 +48,7 @@ typedef struct QTEL_HandlerTypeDef {
   uint8_t             events;
   uint8_t             errors;
   uint8_t             signal; // 0 - 100
+  uint8_t             runningCounter;
 
   uint8_t checkNetworkTimeoutRetry;
 

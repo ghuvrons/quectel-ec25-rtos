@@ -136,6 +136,7 @@ void QTEL_Thread_Run(QTEL_HandlerTypeDef *qtelPtr)
   }
 
   for (;;) {
+    qtelPtr->runningCounter++;
     if (qtelPtr->rtos.eventWait(QTEL_RTOS_EVT_ALL, &notifEvent, timeout) == QTEL_OK) {
       if (IS_EVENT(notifEvent, QTEL_RTOS_EVT_NEW_STATE)) {
         onNewState(qtelPtr);

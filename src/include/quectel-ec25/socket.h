@@ -42,6 +42,7 @@ void          QTEL_SockManager_SetState(QTEL_Socket_HandlerTypeDef *, uint8_t ne
 void          QTEL_SockManager_OnNewState(QTEL_Socket_HandlerTypeDef*);
 void          QTEL_SockManager_OnPoweredDown(QTEL_Socket_HandlerTypeDef*);
 void          QTEL_SockManager_CheckSocketsEvents(QTEL_Socket_HandlerTypeDef*);
+QTEL_Status_t QTEL_SockManager_PDP_IsActivate(QTEL_Socket_HandlerTypeDef*, uint8_t *isActive);
 QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef*);
 QTEL_Status_t QTEL_SockManager_PDP_Deactivate(QTEL_Socket_HandlerTypeDef *sockMgr);
 void          QTEL_SockManager_Loop(QTEL_Socket_HandlerTypeDef*);

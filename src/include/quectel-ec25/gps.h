@@ -87,6 +87,15 @@ typedef enum {
   QTEL_GPS_MS_ASSISTED,
 } QTEL_GPS_Mode_t;
 
+typedef enum {
+  QTEL_GPS_GGA,
+  QTEL_GPS_RMC,
+  QTEL_GPS_GSV,
+  QTEL_GPS_GSA,
+  QTEL_GPS_VTG,
+  QTEL_GPS_GNS,
+} QTEL_GPS_NMEAFormatType_t;
+
 
 typedef struct {
   uint32_t                  key;
@@ -147,6 +156,17 @@ typedef struct QTEL_GPS_HandlerTypeDef {
     float speed;
     uint8_t satelliteNumber;
   } data;
+
+#if QTEL_DEBUG_GPSNMEA
+  struct {
+    uint8_t GGA[128];
+    uint8_t RMC[128];
+    uint8_t GSV[128];
+    uint8_t GSA[128];
+    uint8_t VTG[128];
+    uint8_t GNS[128];
+  } nmea;
+#endif /* QTEL_DEBUG_GPSNMEA */
 } QTEL_GPS_HandlerTypeDef;
 
 QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef*, void *qtelPtr);

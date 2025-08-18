@@ -111,6 +111,28 @@ void QTEL_SockManager_CheckSocketsEvents(QTEL_Socket_HandlerTypeDef *sockMgr)
   }
 }
 
+QTEL_Status_t QTEL_SockManager_PDP_IsActivate(QTEL_Socket_HandlerTypeDef *sockMgr, uint8_t *isActive)
+{
+  QTEL_HandlerTypeDef *qtelPtr = sockMgr->qtel;
+  QTEL_Status_t status;
+
+  if (qtelPtr->state < QTEL_STATE_ACTIVE
+      || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE
+      || !(QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_GPRS_REGISTERED)
+           || QTEL_IS_STATUS(qtelPtr, QTEL_STATUS_LTE_REGISTERED)))
+  {
+    *isActive = 0;
+    return QTEL_OK;
+  }
+
+  if (QTEL_IS_STATUS(&qtelPtr->net, QTEL_NET_PDP_ACTIVATING)) {
+    *isActive = 0;
+    return QTEL_OK;
+  }
+
+  return QTEL_NET_IsPDPActive(&qtelPtr->net, sockMgr->contextId, isActive);
+}
+
 QTEL_Status_t QTEL_SockManager_PDP_Activate(QTEL_Socket_HandlerTypeDef *sockMgr)
 {
   QTEL_HandlerTypeDef *qtelPtr = sockMgr->qtel;
@@ -227,7 +249,6 @@ static void onSocketOpened(void *app, AT_Data_t *resp)
     QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENED);
   }
   else {
-    sock->state = QTEL_SOCK_STATE_OPEN_ERROR;
     QTEL_SockClient_SetEvents(sock, QTEL_SOCK_EVENT_ON_OPENING_ERROR);
 
     switch (err) {

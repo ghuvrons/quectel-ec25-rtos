@@ -74,6 +74,10 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef*);
 static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef*);
 static void parseTimeStr(QTEL_Datetime_t *dst, const char *src);
 
+#if QTEL_DEBUG_GPSNMEA
+static QTEL_Status_t getNMEA(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_NMEAFormatType_t);
+#endif /* QTEL_DEBUG_GPSNMEA */
+
 QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
 {
   if (((QTEL_HandlerTypeDef*)qtelPtr)->key != QTEL_KEY)
@@ -88,6 +92,15 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
   if (qtelGps->config.key != QTEL_GPS_CONFIG_KEY) {
     QTEL_GPS_SetupConfig(qtelGps, &defaultConfig);
   }
+
+#if QTEL_DEBUG_GPSNMEA
+  memset(&qtelGps->nmea.GGA, 0, 128);
+  memset(&qtelGps->nmea.RMC, 0, 128);
+  memset(&qtelGps->nmea.GSV, 0, 128);
+  memset(&qtelGps->nmea.GSA, 0, 128);
+  memset(&qtelGps->nmea.VTG, 0, 128);
+  memset(&qtelGps->nmea.GNS, 0, 128);
+#endif /* QTEL_DEBUG_GPSNMEA */
 
   return QTEL_OK;
 }
@@ -245,6 +258,17 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
 
   default: break;
   }
+
+#if QTEL_DEBUG_GPSNMEA
+  if (qtelGps->state == QTEL_GPS_STATE_FIXING || qtelGps->state == QTEL_GPS_STATE_FIXED) {
+    getNMEA(qtelGps, QTEL_GPS_GGA);
+    getNMEA(qtelGps, QTEL_GPS_RMC);
+    getNMEA(qtelGps, QTEL_GPS_GSV);
+    getNMEA(qtelGps, QTEL_GPS_GSA);
+    getNMEA(qtelGps, QTEL_GPS_VTG);
+    getNMEA(qtelGps, QTEL_GPS_GNS);
+  }
+#endif
 
   return;
 }
@@ -547,6 +571,56 @@ static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef *qtelGps)
   qtelGps->data.COG       = respData[6].value.floatNumber;
   qtelGps->data.speed     = respData[7].value.floatNumber;
   qtelGps->data.satelliteNumber = respData[10].value.number;
+
+  return QTEL_OK;
+}
+
+
+static QTEL_Status_t getNMEA(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_NMEAFormatType_t nmeaType)
+{
+  QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
+
+
+  AT_Data_t paramData[1];
+  AT_Data_t respData[1];
+
+  switch (nmeaType) {
+  case QTEL_GPS_GGA:
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GGA, 128);
+    AT_DataSetString(&paramData[0], "GGA");
+    break;
+
+  case QTEL_GPS_RMC:
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.RMC, 128);
+    AT_DataSetString(&paramData[0], "RMC");
+    break;
+
+  case QTEL_GPS_GSV:
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GSV, 128);
+    AT_DataSetString(&paramData[0], "GSV");
+    break;
+
+  case QTEL_GPS_GSA:
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GSA, 128);
+    AT_DataSetString(&paramData[0], "GSA");
+    break;
+
+  case QTEL_GPS_VTG:
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.VTG, 128);
+    AT_DataSetString(&paramData[0], "VTG");
+    break;
+
+  case QTEL_GPS_GNS:
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GNS, 128);
+    AT_DataSetString(&paramData[0], "GNS");
+    break;
+
+  default: return QTEL_ERROR;
+  }
+
+
+  if (AT_CommandSingleResp(&qtelPtr->atCmd, "+QGPSGNMEA", 1, paramData, respData) != AT_OK)
+    return QTEL_ERROR;
 
   return QTEL_OK;
 }
