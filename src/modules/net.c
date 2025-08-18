@@ -184,7 +184,6 @@ endCmd:
 }
 
 
-AT_Data_t respDataCheckPDP[16][3];
 QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t contextId, uint8_t *isActive)
 {
   if (contextId > 16) return QTEL_ERROR;
@@ -192,20 +191,20 @@ QTEL_Status_t QTEL_NET_IsPDPActive(QTEL_NET_HandlerTypeDef *qtelNet, uint8_t con
   AT_Status_t status;
   QTEL_HandlerTypeDef *qtelPtr  = qtelNet->qtel;
 
-  memset(respDataCheckPDP, 0, sizeof(respDataCheckPDP));
+  memset(qtelNet->respDataCheckPDP, 0, sizeof(qtelNet->respDataCheckPDP));
 
   // check
-  status = AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &respDataCheckPDP[0][0]);
+  status = AT_CheckWithMultResp(&qtelPtr->atCmd, "+QIACT", 16, 3, &qtelNet->respDataCheckPDP[0][0]);
   if (status != AT_OK) {
     return (QTEL_Status_t) status;
   }
 
   *isActive = 0;
   for (uint8_t i = 0; i < 16; i++) {
-    if (respDataCheckPDP[i][0].type == AT_NUMBER &&
-        respDataCheckPDP[i][0].value.number == contextId)
+    if (qtelNet->respDataCheckPDP[i][0].type == AT_NUMBER &&
+        qtelNet->respDataCheckPDP[i][0].value.number == contextId)
     {
-      if (respDataCheckPDP[i][1].value.number == 1) {
+      if (qtelNet->respDataCheckPDP[i][1].value.number == 1) {
         *isActive = 1;
       }
       break;

@@ -13,6 +13,7 @@
 #if QTEL_EN_FEATURE_NET
 
 #include <quectel-ec25/types.h>
+#include <at-command.h>
 
 #define QTEL_NET_PDP_ACTIVATING 0x01
 
@@ -36,6 +37,8 @@ typedef struct {
     char *user;
     char *pass;
   } APN;
+
+  AT_Data_t respDataCheckPDP[16][3];
 } QTEL_NET_HandlerTypeDef;
 
 
