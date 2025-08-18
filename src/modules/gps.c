@@ -576,6 +576,7 @@ static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef *qtelGps)
 }
 
 
+#if QTEL_DEBUG_GPSNMEA
 static QTEL_Status_t getNMEA(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_NMEAFormatType_t nmeaType)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
@@ -624,6 +625,7 @@ static QTEL_Status_t getNMEA(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_NMEAForm
 
   return QTEL_OK;
 }
+#endif /* QTEL_DEBUG_GPSNMEA */
 
 
 static void parseTimeStr(QTEL_Datetime_t *dst, const char *src)
