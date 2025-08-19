@@ -300,8 +300,17 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
       AT_Number(0),
       AT_Number(0),
   };
+  AT_Data_t respCheck[1] = {
+      AT_Number(0),
+  };
 
   if (qtelGps->isConfigured) return QTEL_OK;
+
+  if (AT_Check(&qtelPtr->atCmd, "+QGPS", 1, respCheck) == AT_OK) {
+    if (respCheck[0].type == AT_NUMBER && respCheck[0].value.number == 1) {
+      stopGPS(qtelGps);
+    }
+  }
 
   AT_DataSetString(&paramData[0], "gnssconfig");
   AT_DataSetNumber(&paramData[1], 1);
@@ -440,7 +449,7 @@ static QTEL_Status_t configureOneXTRA(QTEL_GPS_HandlerTypeDef *qtelGps)
 
   qtelGps->isOneExtraActive = 0;
 
-  if (qtelGps->config.oneXTRA.dataURL != 0) {
+  if (qtelGps->config.oneXTRA.dataURL != 0 && *(qtelGps->config.oneXTRA.dataURL) != 0) {
     if (AT_Check(&qtelPtr->atCmd, "+QGPSXTRA", 1, respData) != AT_OK)
       return QTEL_ERROR;
 
