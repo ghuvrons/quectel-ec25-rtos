@@ -114,7 +114,6 @@ void QTEL_SockManager_CheckSocketsEvents(QTEL_Socket_HandlerTypeDef *sockMgr)
 QTEL_Status_t QTEL_SockManager_PDP_IsActivate(QTEL_Socket_HandlerTypeDef *sockMgr, uint8_t *isActive)
 {
   QTEL_HandlerTypeDef *qtelPtr = sockMgr->qtel;
-  QTEL_Status_t status;
 
   if (qtelPtr->state < QTEL_STATE_ACTIVE
       || qtelPtr->net.state != QTEL_NET_STATE_ACTIVE
