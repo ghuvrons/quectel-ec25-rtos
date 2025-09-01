@@ -16,6 +16,20 @@
 #ifndef QTEL_GPS_TMP_BUF_SIZE
 #define QTEL_GPS_TMP_BUF_SIZE 128
 #endif
+#if QTEL_DEBUG_GPSNMEA
+#ifndef QTEL_GPS_NMEA_BUF_SIZE
+#define QTEL_GPS_NMEA_BUF_SIZE  128
+#endif /* QTEL_GPS_NMEA_BUF_SIZE */
+#ifndef QTEL_GPS_NMEA_GSV_LIST_NUM
+#define QTEL_GPS_NMEA_GSV_LIST_NUM  10
+#endif /* QTEL_GPS_NMEA_BUF_SIZE */
+#ifndef QTEL_GPS_NMEA_GSA_LIST_NUM
+#define QTEL_GPS_NMEA_GSA_LIST_NUM  2
+#endif /* QTEL_GPS_NMEA_BUF_SIZE */
+#ifndef QTEL_GPS_NMEA_GNS_LIST_NUM
+#define QTEL_GPS_NMEA_GNS_LIST_NUM  2
+#endif /* QTEL_GPS_NMEA_BUF_SIZE */
+#endif /* QTEL_DEBUG_GPSNMEA */
 
 #define QTEL_GPS_RPT_GPGGA 0x0001
 #define QTEL_GPS_RPT_GPRMC 0x0002
@@ -61,6 +75,7 @@
 typedef enum {
   QTEL_GPS_STATE_NON_ACTIVE,
   QTEL_GPS_STATE_STARTING,
+  QTEL_GPS_STATE_RESTARTING,
   QTEL_GPS_STATE_FIXING,
   QTEL_GPS_STATE_FIXED,
 } QTEL_GPS_State_t;
@@ -139,6 +154,7 @@ typedef struct QTEL_GPS_HandlerTypeDef {
   uint8_t             isOneExtraActive;
   QTEL_GPS_Config_t   config;
   uint8_t             acquireErrorCounter;
+  uint8_t             reqDelData;
 
 
   struct {
@@ -159,12 +175,16 @@ typedef struct QTEL_GPS_HandlerTypeDef {
 
 #if QTEL_DEBUG_GPSNMEA
   struct {
-    uint8_t GGA[128];
-    uint8_t RMC[128];
-    uint8_t GSV[128];
-    uint8_t GSA[128];
-    uint8_t VTG[128];
-    uint8_t GNS[128];
+    uint8_t GGA[QTEL_GPS_NMEA_BUF_SIZE];
+    uint8_t RMC[QTEL_GPS_NMEA_BUF_SIZE];
+    uint8_t GSV[QTEL_GPS_NMEA_GSV_LIST_NUM][QTEL_GPS_NMEA_BUF_SIZE];
+    uint8_t GSA[QTEL_GPS_NMEA_GSA_LIST_NUM][QTEL_GPS_NMEA_BUF_SIZE];
+    uint8_t VTG[QTEL_GPS_NMEA_BUF_SIZE];
+    uint8_t GNS[QTEL_GPS_NMEA_GNS_LIST_NUM][QTEL_GPS_NMEA_BUF_SIZE];
+
+    uint8_t tmp_GSV[QTEL_GPS_NMEA_GSV_LIST_NUM][QTEL_GPS_NMEA_BUF_SIZE];
+    uint8_t tmp_GSA[QTEL_GPS_NMEA_GSA_LIST_NUM][QTEL_GPS_NMEA_BUF_SIZE];
+    uint8_t tmp_GNS[QTEL_GPS_NMEA_GNS_LIST_NUM][QTEL_GPS_NMEA_BUF_SIZE];
   } nmea;
 #endif /* QTEL_DEBUG_GPSNMEA */
 } QTEL_GPS_HandlerTypeDef;
@@ -177,6 +197,7 @@ void          QTEL_GPS_OnPoweredDown(QTEL_GPS_HandlerTypeDef*);
 QTEL_Status_t QTEL_GPS_SetupConfiguration(QTEL_GPS_HandlerTypeDef*, QTEL_GPS_Config_t*);
 void          QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef*);
 void          QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef*);
+void          QTEL_GPS_DeleteData(QTEL_GPS_HandlerTypeDef*, uint8_t reqDelete);
 
 const QTEL_GPS_Config_t* QTEL_GPS_GetDefaultConfig(void);
 

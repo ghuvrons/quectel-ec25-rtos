@@ -88,6 +88,7 @@ QTEL_Status_t QTEL_GPS_Init(QTEL_GPS_HandlerTypeDef *qtelGps, void *qtelPtr)
   qtelGps->stateTick = 0;
   qtelGps->restartTick = 0;
   qtelGps->restartLimitTick = 0;
+  qtelGps->reqDelData = 0xFF;
 
   if (qtelGps->config.key != QTEL_GPS_CONFIG_KEY) {
     QTEL_GPS_SetupConfig(qtelGps, &defaultConfig);
@@ -152,14 +153,20 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
 
       QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXING);
     }
+    qtelGps->tryRestarting = 0;
+    qtelGps->restartTick = 0;
+    break;
+
+  case QTEL_GPS_STATE_RESTARTING:
+    if (qtelGps->callback.onRestarting)
+      qtelGps->callback.onRestarting();
+    stopGPS(qtelGps);
     break;
 
   case QTEL_GPS_STATE_FIXING:
     if (qtelGps->callback.onFixing)
       qtelGps->callback.onFixing();
     qtelGps->getLocTick = qtelGps->stateTick;
-    qtelGps->restartTick = 0;
-    qtelGps->tryRestarting = 0;
     break;
 
   case QTEL_GPS_STATE_FIXED:
@@ -168,6 +175,8 @@ void QTEL_GPS_OnNewState(QTEL_GPS_HandlerTypeDef *qtelGps)
     QTEL_Debug("[GPS] fixed");
     qtelGps->acquireErrorCounter = 0;
     qtelGps->getLocTick = qtelGps->stateTick;
+    qtelGps->tryRestarting = 0;
+    qtelGps->restartTick = 0;
     break;
 
   default: break;
@@ -199,6 +208,20 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
     break;
 
+  case QTEL_GPS_STATE_RESTARTING:
+    if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 10000)) {
+      if (qtelPtr->state <= QTEL_STATE_STARTING) {
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
+        break;
+      }
+      if (startGPS(qtelGps, qtelGps->config.mode) != QTEL_OK) {
+        QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
+        break;
+      }
+      QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_FIXING);
+    }
+    break;
+
   case QTEL_GPS_STATE_FIXING:
     if (qtelPtr->state <= QTEL_STATE_STARTING) {
       QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
@@ -217,7 +240,8 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
 
     if (qtelGps->tryRestarting) {
-      if (qtelGps->restartTick == 0 || QTEL_IsTimeout(qtelPtr, qtelGps->restartTick, 180000)) {
+      if (qtelGps->restartTick == 0 || QTEL_IsTimeout(qtelPtr, qtelGps->restartTick, 180000))
+      {
         // limit restart when not standalone for saving data usage
         if (qtelGps->config.mode != QTEL_GPS_STANDALONE) {
           if (qtelGps->restartLimitTick == 0 || QTEL_IsTimeout(qtelPtr, qtelGps->restartLimitTick, 1800000)) {
@@ -228,13 +252,12 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
             qtelGps->restartCounter += 1;
         }
 
+        if (qtelGps->restartTick == 0) {
+          qtelGps->reqDelData = 1;
+        }
+
         if (qtelGps->config.mode == QTEL_GPS_STANDALONE || qtelGps->restartCounter < 5) {
-          if (qtelGps->callback.onRestarting)
-            qtelGps->callback.onRestarting();
-          if (startGPS(qtelGps, qtelGps->config.mode) != QTEL_OK) {
-            QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
-            break;
-          }
+          QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_RESTARTING);
         }
 
         qtelGps->restartTick = qtelPtr->getTick();
@@ -284,6 +307,14 @@ void QTEL_GPS_Activate(QTEL_GPS_HandlerTypeDef *qtelGps)
   }
 }
 
+void QTEL_GPS_DeleteData(QTEL_GPS_HandlerTypeDef *qtelGps, uint8_t reqDelete)
+{
+  qtelGps->reqDelData = reqDelete;
+  if (qtelGps->state >= QTEL_GPS_STATE_STARTING) {
+    QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_STARTING);
+  }
+}
+
 const QTEL_GPS_Config_t* QTEL_GPS_GetDefaultConfig(void)
 {
   return &defaultConfig;
@@ -313,6 +344,14 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
   }
 
   AT_DataSetString(&paramData[0], "gnssconfig");
+  AT_DataSetNumber(&paramData[1], 1);
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
+      respData[1].value.number != 1)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  }
+
+  AT_DataSetString(&paramData[0], "glonassnmeatype");
   AT_DataSetNumber(&paramData[1], 1);
   if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
       respData[1].value.number != 1)
@@ -414,6 +453,21 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
 
   stopGPS(qtelGps);
 
+  switch (qtelGps->reqDelData) {
+  case 0: case 1: case 2: case 3: case 4:
+    AT_DataSetNumber(&paramData[0], qtelGps->reqDelData);
+    AT_Command(&qtelPtr->atCmd, "+QGPSDEL", 1, paramData, 0, 0);
+    if (qtelGps->reqDelData != 1) {
+      qtelGps->reqDelData = 1;
+    } else {
+      qtelGps->reqDelData = 0xFF;
+    }
+    break;
+  default:
+    qtelGps->reqDelData = 0xFF;
+    break;
+  }
+
 activateGPS:
 #if QTEL_EN_FEATURE_GPS_ONEXTRA
   if (mode == QTEL_GPS_STANDALONE) {
@@ -425,6 +479,7 @@ activateGPS:
     AT_Command(&qtelPtr->atCmd, "+QGPSXTRA=0", 0, 0, 0, 0);
   }
 #endif
+  AT_DataSetNumber(&paramData[0], mode);
   if (AT_Command(&qtelPtr->atCmd, "+QGPS", 1, paramData, 0, 0) != AT_OK)
     return QTEL_ERROR;
 
@@ -589,39 +644,52 @@ static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef *qtelGps)
 static QTEL_Status_t getNMEA(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_NMEAFormatType_t nmeaType)
 {
   QTEL_HandlerTypeDef *qtelPtr = qtelGps->qtel;
+  uint8_t i;
 
-
-  AT_Data_t paramData[1];
-  AT_Data_t respData[1];
+  AT_Data_t paramData[1] = {0};
+  AT_Data_t respData[10] = {0};
+  uint8_t respListNum = 1;
 
   switch (nmeaType) {
   case QTEL_GPS_GGA:
-    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GGA, 128);
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GGA, QTEL_GPS_NMEA_BUF_SIZE-1);
     AT_DataSetString(&paramData[0], "GGA");
     break;
 
   case QTEL_GPS_RMC:
-    AT_DataSetBuffer(&respData[0], qtelGps->nmea.RMC, 128);
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.RMC, QTEL_GPS_NMEA_BUF_SIZE-1);
     AT_DataSetString(&paramData[0], "RMC");
     break;
 
   case QTEL_GPS_GSV:
-    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GSV, 128);
+    respListNum = QTEL_GPS_NMEA_GSV_LIST_NUM;
+    for (i = 0; i < QTEL_GPS_NMEA_GSV_LIST_NUM; i++) {
+      AT_DataSetBuffer(&respData[i], qtelGps->nmea.tmp_GSV[i], QTEL_GPS_NMEA_BUF_SIZE-1);
+      qtelGps->nmea.tmp_GSV[i][0] = 0;
+    }
     AT_DataSetString(&paramData[0], "GSV");
     break;
 
   case QTEL_GPS_GSA:
-    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GSA, 128);
+    respListNum = QTEL_GPS_NMEA_GSA_LIST_NUM;
+    for (i = 0; i < QTEL_GPS_NMEA_GSA_LIST_NUM; i++) {
+      AT_DataSetBuffer(&respData[i], qtelGps->nmea.tmp_GSA[i], QTEL_GPS_NMEA_BUF_SIZE-1);
+      qtelGps->nmea.tmp_GSA[i][0] = 0;
+    }
     AT_DataSetString(&paramData[0], "GSA");
     break;
 
   case QTEL_GPS_VTG:
-    AT_DataSetBuffer(&respData[0], qtelGps->nmea.VTG, 128);
+    AT_DataSetBuffer(&respData[0], qtelGps->nmea.VTG, QTEL_GPS_NMEA_BUF_SIZE-1);
     AT_DataSetString(&paramData[0], "VTG");
     break;
 
   case QTEL_GPS_GNS:
-    AT_DataSetBuffer(&respData[0], qtelGps->nmea.GNS, 128);
+    respListNum = QTEL_GPS_NMEA_GNS_LIST_NUM;
+    for (i = 0; i < QTEL_GPS_NMEA_GSA_LIST_NUM; i++) {
+      AT_DataSetBuffer(&respData[i], qtelGps->nmea.tmp_GNS[i], QTEL_GPS_NMEA_BUF_SIZE-1);
+      qtelGps->nmea.tmp_GNS[i][0] = 0;
+    }
     AT_DataSetString(&paramData[0], "GNS");
     break;
 
@@ -629,9 +697,39 @@ static QTEL_Status_t getNMEA(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_NMEAForm
   }
 
 
-  if (AT_CommandSingleResp(&qtelPtr->atCmd, "+QGPSGNMEA", 1, paramData, respData) != AT_OK)
+  if (AT_CommandSingleResp(&qtelPtr->atCmd, "+QGPSGNMEA", 1, paramData, respListNum, respData) != AT_OK)
+  {
+    if (nmeaType == QTEL_GPS_GSV) {
+      for (uint8_t i = 0; i < QTEL_GPS_NMEA_GSV_LIST_NUM; i++) {
+        qtelGps->nmea.GSV[i][0] = 0;
+      }
+    } else if (nmeaType == QTEL_GPS_GSA) {
+      for (uint8_t i = 0; i < QTEL_GPS_NMEA_GSA_LIST_NUM; i++) {
+        qtelGps->nmea.GSA[i][0] = 0;
+      }
+    } else if (nmeaType == QTEL_GPS_GNS) {
+      for (uint8_t i = 0; i < QTEL_GPS_NMEA_GNS_LIST_NUM; i++) {
+        qtelGps->nmea.GNS[i][0] = 0;
+      }
+    } else {
+      *respData[0].ptr = 0;
+    }
     return QTEL_ERROR;
+  }
 
+  if (nmeaType == QTEL_GPS_GSV) {
+    for (uint8_t i = 0; i < QTEL_GPS_NMEA_GSV_LIST_NUM; i++) {
+      strncpy((char*) qtelGps->nmea.GSV[i], (const char*) qtelGps->nmea.tmp_GSV[i], QTEL_GPS_NMEA_BUF_SIZE);
+    }
+  } else if (nmeaType == QTEL_GPS_GSA) {
+    for (uint8_t i = 0; i < QTEL_GPS_NMEA_GSA_LIST_NUM; i++) {
+      strncpy((char*) qtelGps->nmea.GSA[i], (const char*) qtelGps->nmea.tmp_GSA[i], QTEL_GPS_NMEA_BUF_SIZE);
+    }
+  } else if (nmeaType == QTEL_GPS_GNS) {
+    for (uint8_t i = 0; i < QTEL_GPS_NMEA_GNS_LIST_NUM; i++) {
+      strncpy((char*) qtelGps->nmea.GNS[i], (const char*) qtelGps->nmea.tmp_GNS[i], QTEL_GPS_NMEA_BUF_SIZE);
+    }
+  }
   return QTEL_OK;
 }
 #endif /* QTEL_DEBUG_GPSNMEA */

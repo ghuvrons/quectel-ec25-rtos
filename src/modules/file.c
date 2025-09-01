@@ -26,36 +26,38 @@ QTEL_Status_t QTEL_FILE_Init(QTEL_FILE_HandlerTypeDef *qtelFile, void *qtelPtr)
 }
 
 
-QTEL_Status_t QTEL_FILE_MemoryInfo(QTEL_FILE_HandlerTypeDef *qtelFile)
-{
-//  QTEL_HandlerTypeDef *qtel = qtelFile->qtel;
-//
-//  uint8_t       respBuf[64];
-//  const uint8_t *respBufPtr = respBuf;
-//  AT_Data_t     respData[1] = {
-//    AT_Buffer(respBuf, 64),
-//  };
-//
-//  AT_Data_t memTotal = AT_Number(0);
-//  AT_Data_t memUsed = AT_Number(0);
-//
-//  if (AT_Command(&qtel->atCmd, "+FSMEM", 0, 0, 1, respData) != AT_OK) return QTEL_ERROR;
-//
-//  while (*respBufPtr != 0) {
-//    if (*respBufPtr == '(') {
-//      respBufPtr++;
-//      break;
-//    }
-//
-//    respBufPtr++;
-//  }
-//
-//  respBufPtr = (const uint8_t*) AT_ParseResponse((const char*)respBufPtr, &memTotal);
-//  respBufPtr = (const uint8_t*) AT_ParseResponse((const char*)respBufPtr, &memUsed);
-//
-//  qtelFile->memoryTotal = (uint32_t) memTotal.value.number;
-//  qtelFile->memoryUsed = (uint32_t) memUsed.value.number;
+QTEL_Status_t QTEL_FILE_MemoryInfo(
+    QTEL_FILE_HandlerTypeDef *qtelFile,
+    QTEL_FILE_NamePattern namePattern,
+    uint32_t *freeSize,
+    uint32_t *totalSize
+) {
+  QTEL_HandlerTypeDef *qtel = qtelFile->qtel;
 
+  if (qtel->state <= QTEL_STATE_CHECK_NETWORK) return QTEL_ERROR;
+
+  AT_Data_t paramData[1];
+  AT_Data_t respData[2] = {
+      AT_Number(0),
+      AT_Number(0),
+  };
+
+  switch (namePattern) {
+  case QTEL_FILE_NamePattern_UFS:
+    AT_DataSetString(&paramData[0], "UFS");
+    break;
+  case QTEL_FILE_NamePattern_SD:
+    AT_DataSetString(&paramData[0], "SD");
+    break;
+  default:
+    AT_DataSetString(&paramData[0], "RAM");
+    break;
+  }
+
+  if (AT_Command(&qtel->atCmd, "+QFLDS", 1, paramData, 2, respData) != AT_OK) return QTEL_ERROR;
+
+  *freeSize = (uint32_t) respData[0].value.number;
+  *totalSize = (uint32_t) respData[1].value.number;
   return QTEL_OK;
 }
 

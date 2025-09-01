@@ -21,9 +21,16 @@ typedef struct {
 } QTEL_FILE_HandlerTypeDef;
 
 
+typedef enum {
+  QTEL_FILE_NamePattern_RAM,
+  QTEL_FILE_NamePattern_UFS,
+  QTEL_FILE_NamePattern_SD,
+} QTEL_FILE_NamePattern;
+
+
 QTEL_Status_t QTEL_FILE_Init(QTEL_FILE_HandlerTypeDef*, void *qtelPtr);
 
-QTEL_Status_t QTEL_FILE_MemoryInfo(QTEL_FILE_HandlerTypeDef*);
+QTEL_Status_t QTEL_FILE_MemoryInfo(QTEL_FILE_HandlerTypeDef*, QTEL_FILE_NamePattern, uint32_t *freeSize, uint32_t *totalSize);
 QTEL_Status_t QTEL_FILE_IsFileExist(QTEL_FILE_HandlerTypeDef*, const char *filepath);
 QTEL_Status_t QTEL_FILE_CreateAndWriteFile(QTEL_FILE_HandlerTypeDef*, const char *filepath, const uint8_t* data, uint16_t len);
 QTEL_Status_t QTEL_FILE_CopyFile(QTEL_FILE_HandlerTypeDef*, const char *filepath1, const char *filepath2);
