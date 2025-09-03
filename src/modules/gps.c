@@ -209,7 +209,7 @@ void QTEL_GPS_Loop(QTEL_GPS_HandlerTypeDef *qtelGps)
     break;
 
   case QTEL_GPS_STATE_RESTARTING:
-    if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 10000)) {
+    if (QTEL_IsTimeout(qtelPtr, qtelGps->stateTick, 1000)) {
       if (qtelPtr->state <= QTEL_STATE_STARTING) {
         QTEL_GPS_SetState(qtelGps, QTEL_GPS_STATE_NON_ACTIVE);
         break;
@@ -470,14 +470,14 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
 
 activateGPS:
 #if QTEL_EN_FEATURE_GPS_ONEXTRA
-  if (mode == QTEL_GPS_STANDALONE) {
+//  if (mode == QTEL_GPS_STANDALONE) {
     if (QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
       configureOneXTRA(qtelGps);
     }
-  }
-  else {
-    AT_Command(&qtelPtr->atCmd, "+QGPSXTRA=0", 0, 0, 0, 0);
-  }
+//  }
+//  else {
+//    AT_Command(&qtelPtr->atCmd, "+QGPSXTRA=0", 0, 0, 0, 0);
+//  }
 #endif
   AT_DataSetNumber(&paramData[0], mode);
   if (AT_Command(&qtelPtr->atCmd, "+QGPS", 1, paramData, 0, 0) != AT_OK)
