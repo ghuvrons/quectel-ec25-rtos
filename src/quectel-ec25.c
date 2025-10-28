@@ -271,7 +271,7 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
   case QTEL_STATE_POWERING_DOWN:
     qtelPtr->tick.poweringDown = qtelPtr->getTick();
     if (AT_Command(&qtelPtr->atCmd, "+QPOWD", 0, 0, 0, 0) != AT_OK) {
-      QTEL_SetState(qtelPtr, QTEL_STATE_REBOOT);
+      QTEL_Reboot(qtelPtr);
     }
     break;
 
