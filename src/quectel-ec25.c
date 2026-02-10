@@ -351,10 +351,12 @@ static void onNewState(QTEL_HandlerTypeDef *qtelPtr)
         AT_Command(&qtelPtr->atCmd, "+QCFG=\"urc/poweron\",0", 0, 0, 0, 0);
         isNeedReset = 1;
       }
-
+      AT_Command(&qtelPtr->atCmd, "+QCFG=\"band\",0,80,0", 0, 0, 0, 0);
+      
+      AT_Command(&qtelPtr->atCmd, "+QOPSCFG=\"scancontrol\",2,0,80,0", 0, 0, 0, 0);
       // auto save data counter
       AT_Command(&qtelPtr->atCmd, "+QAUGDCNT=60", 0, 0, 0, 0);
-
+      
       AT_Command(&qtelPtr->atCmd, "+CREG=1", 0, 0, 0, 0);
       AT_Command(&qtelPtr->atCmd, "+CGREG=1", 0, 0, 0, 0);
       AT_Command(&qtelPtr->atCmd, "+CEREG=1", 0, 0, 0, 0);

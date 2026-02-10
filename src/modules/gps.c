@@ -343,6 +343,15 @@ static QTEL_Status_t setConfiguration(QTEL_GPS_HandlerTypeDef *qtelGps)
     }
   }
 
+  AT_DataSetString(&paramData[0], "outport");
+  AT_DataSetString(&paramData[1], "none");
+  if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
+      strncmp(respData[0].value.string, "none", 4) != 0)
+  {
+    if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 2, paramData, 0, 0) != AT_OK) goto endCmd;
+  }
+  
+
   AT_DataSetString(&paramData[0], "gnssconfig");
   AT_DataSetNumber(&paramData[1], 1);
   if (AT_Command(&qtelPtr->atCmd, "+QGPSCFG", 1, paramData, 2, respData) != AT_OK ||
@@ -430,7 +439,6 @@ static QTEL_Status_t stopGPS(QTEL_GPS_HandlerTypeDef *qtelGps)
   return QTEL_OK;
 }
 
-
 static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
                               QTEL_GPS_Mode_t mode)
 {
@@ -452,6 +460,7 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
   }
 
   stopGPS(qtelGps);
+  OS_Delay(500);
 
   switch (qtelGps->reqDelData) {
   case 0: case 1: case 2: case 3: case 4:
@@ -467,7 +476,7 @@ static QTEL_Status_t startGPS(QTEL_GPS_HandlerTypeDef *qtelGps,
     qtelGps->reqDelData = 0xFF;
     break;
   }
-
+  OS_Delay(500);
 activateGPS:
 #if QTEL_EN_FEATURE_GPS_ONEXTRA
 //  if (mode == QTEL_GPS_STANDALONE) {
@@ -635,10 +644,9 @@ static QTEL_Status_t acquirePosition(QTEL_GPS_HandlerTypeDef *qtelGps)
   qtelGps->data.COG       = respData[6].value.floatNumber;
   qtelGps->data.speed     = respData[7].value.floatNumber;
   qtelGps->data.satelliteNumber = respData[10].value.number;
-
+  
   return QTEL_OK;
 }
-
 
 #if QTEL_DEBUG_GPSNMEA
 static QTEL_Status_t getNMEA(QTEL_GPS_HandlerTypeDef *qtelGps, QTEL_GPS_NMEAFormatType_t nmeaType)
