@@ -26,6 +26,7 @@ typedef struct {
   uint32_t  syncTick;
   void      (*onSynced)(QTEL_Datetime_t);
   uint8_t   isSetToGMT;
+  int8_t    nitzTimezone; /* timezone from NITZ (unit: quarter-hour, e.g. +28 = UTC+7) */
 
   struct {
     uint32_t retryInterval;

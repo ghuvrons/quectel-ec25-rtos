@@ -30,6 +30,7 @@ QTEL_Status_t QTEL_NTP_Init(QTEL_NTP_HandlerTypeDef *qtelNTP, void *qtelPtr)
   qtelNTP->config.resyncInterval = 24*3600;
   qtelNTP->config.retryInterval = 5000;
   qtelNTP->isSetToGMT = 0;
+  qtelNTP->nitzTimezone = 0;
 
   AT_Data_t *ntpResp = malloc(sizeof(AT_Data_t));
   memset(ntpResp, 0, sizeof(AT_Data_t));
@@ -92,6 +93,11 @@ QTEL_Status_t QTEL_NTP_Sync(QTEL_NTP_HandlerTypeDef *qtelNTP)
 
   // set timezone to GMT
   if (!qtelNTP->isSetToGMT) {
+    /* Read NITZ timezone before overriding CCLK to +00 */
+    QTEL_Datetime_t nitzDt;
+    if (QTEL_GetTime(qtelPtr, &nitzDt) == QTEL_OK)
+      qtelNTP->nitzTimezone = nitzDt.timezone;
+
     AT_DataSetString(&paramData[0], "23/01/01,00:00:00+00");
     AT_Command(&qtelPtr->atCmd, "+CCLK", 1, paramData, 0, 0);
     qtelNTP->isSetToGMT = 1;
@@ -133,6 +139,7 @@ QTEL_Status_t QTEL_NTP_OnSyncingFinish(QTEL_NTP_HandlerTypeDef *qtelNTP)
 
   if (QTEL_IS_STATUS(&qtelPtr->ntp, QTEL_NTP_WAS_SYNCED)) {
     if (qtelNTP->onSynced != 0 && QTEL_GetTime(qtelPtr, &dt) == QTEL_OK) {
+      dt.timezone = qtelNTP->nitzTimezone;
       qtelNTP->onSynced(dt);
     }
   }
